@@ -1,0 +1,84 @@
+# ──────────────────────────────────────────────────────────────
+# 1. DEPENDENCIES & BUILD
+# ──────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+build/
+public/build/
+*.min.js
+*.min.css
+
+# ──────────────────────────────────────────────────────────────
+# 2. ENVIRONMENT & SECRETS
+# ──────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+public/scripts/config.js          # ← QUAN TRỌNG: KHÔNG BAO GIỜ COMMIT
+public/scripts/config.local.js
+*.key
+*api.key
+*secret*
+GROQ_API_KEY
+supabaseUrl
+supabaseKey
+
+
+# ──────────────────────────────────────────────────────────────
+# 3. LOGS & RUNTIME
+# ──────────────────────────────────────────────────────────────
+logs/
+*.log
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# ──────────────────────────────────────────────────────────────
+# 4. OS / IDE
+# ──────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ──────────────────────────────────────────────────────────────
+# 5. PROJECT‑SPECIFIC (ise‑music)
+# ──────────────────────────────────────────────────────────────
+assets/temp/                     # Temp upload
+supabase/config.toml             # Local Supabase config
+.supabase/                       # Supabase CLI folder
+.netlify/                        # Netlify CLI folder
+.netlify/state.json
+
+# ──────────────────────────────────────────────────────────────
+# 6. LARGE MEDIA (tránh commit file nhạc mẫu)
+# ──────────────────────────────────────────────────────────────
+*.mp3
+*.wav
+*.m4a
+*.ogg
+*.webm
+
+# ──────────────────────────────────────────────────────────────
+# 7. DATABASE DUMPS
+# ──────────────────────────────────────────────────────────────
+*.sql
+*.dump
+
+# ──────────────────────────────────────────────────────────────
+# 8. DEPLOYMENT PLATFORMS
+# ──────────────────────────────────────────────────────────────
+.vercel/
+.vercel_build_output/

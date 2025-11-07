@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>ChatMusic - Đăng Nhập</title>
+  <link rel="stylesheet" href="/styles/auth.css" />
+  <link rel="stylesheet" href="/styles/base.css" />
+  <link rel="stylesheet" href="/styles/theme.css" />
+
+  <script type="module">
+        window.SUPABASE_URL = "${SUPABASE_URL}";
+        window.SUPABASE_ANON_KEY = "${SUPABASE_ANON_KEY}";
+        window.SUPABASE_JWT_KEY = "${GROQ_API_KEY}"; 
+
+        console.log('Config injected:', window.SUPABASE_URL ? 'OK' : 'MISSING');
+  </script>
+  <!-- <script type="moduel" src="/scripts/config.mjs"></script> -->
+  <script type="module" src="/supabase/client.js"></script>
+  <script type="module" src="/scripts/auth.js"></script>
+  <script>
+    // Wait for auth.js module to load
+    window.addEventListener('load', () => {
+      if (!window.authFunctions) {
+        console.error('Auth functions not loaded properly');
+      }
+    });
+  </script>
+</head>
+<body class="dark-theme">  
+  <div class="login-container">
+    <h2>🔐 Đăng nhập để sử dụng ứng dụng</h2>
+    <form id="loginForm"> 
+      <div class="input-group">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" placeholder="Nhập email" />
+        <div id="loginEmailError" class="error-message"></div>
+      </div>
+
+      <div class="input-group">
+        <label for="loginPassword">Mật khẩu</label>
+        <input type="password" id="loginPassword" placeholder="Nhập mật khẩu" />
+        <div id="loginPasswordError" class="error-message"></div>
+      </div>
+
+      <button type="submit">Đăng nhập</button>
+    </form>
+    <hr />
+    
+    <div class="social-buttons">
+      <button class="social-btn google" onclick="authFunctions.loginWithGoogle()">
+        Đăng nhập bằng Google
+      </button>
+    </div>
+    
+    <p>Chưa có tài khoản? <a href="signup.html">Tạo tài khoản</a></p>
+  </div>
+</body>
+</html>
