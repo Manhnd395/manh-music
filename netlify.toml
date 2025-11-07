@@ -1,25 +1,27 @@
-# netlify.toml — Static site + Inject env vars vào HTML
-# Validate: TOML v1.0 compliant
+# netlify.toml — Static site + Inject env vars
 
 [build]
-publish = "."   # Publish toàn bộ repo
-command = ""    # Không chạy build
+  publish = "."
+  command = ""
 
-# === INJECT ENV VARS CHO CÁC CONTEXT (KHÔNG LƯU KEY THẬT) ===
+# === INJECT ENV VARS TỪ NETLIFY DASHBOARD ===
 [context.production.environment]
-SUPABASE_URL = "https://lezswjtnlsmznkgrzgmu.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlenN3anRubHNtem5rZ3J6Z211Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1Nzc2MjYsImV4cCI6MjA3NjE1MzYyNn0.7EcHV5IK8r5stTF0uohhFShbWLIaK4A4VEAxYnZG3Vk"
+  SUPABASE_URL = "${SUPABASE_URL}"
+  SUPABASE_ANON_KEY = "${SUPABASE_ANON_KEY}"
+  GROQ_API_KEY = "${GROQ_API_KEY}"
 
 [context.deploy-preview.environment]
-SUPABASE_URL = "https://lezswjtnlsmznkgrzgmu.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlenN3anRubHNtem5rZ3J6Z211Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1Nzc2MjYsImV4cCI6MjA3NjE1MzYyNn0.7EcHV5IK8r5stTF0uohhFShbWLIaK4A4VEAxYnZG3Vk"
+  SUPABASE_URL = "${SUPABASE_URL}"
+  SUPABASE_ANON_KEY = "${SUPABASE_ANON_KEY}"
+  GROQ_API_KEY = "${GROQ_API_KEY}"
 
 [context.branch-deploy.environment]
-SUPABASE_URL = "https://lezswjtnlsmznkgrzgmu.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlenN3anRubHNtem5rZ3J6Z211Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1Nzc2MjYsImV4cCI6MjA3NjE1MzYyNn0.7EcHV5IK8r5stTF0uohhFShbWLIaK4A4VEAxYnZG3Vk"
+  SUPABASE_URL = "${SUPABASE_URL}"
+  SUPABASE_ANON_KEY = "${SUPABASE_ANON_KEY}"
+  GROQ_API_KEY = "${GROQ_API_KEY}"
 
-# === HEADERS BẢO MẬT ===
+# === HEADERS ===
 [[headers]]
-for = "/*"
-[headers.values]
-X-Frame-Options = "DENY"
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
