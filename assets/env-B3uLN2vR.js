@@ -1,0 +1,1 @@
+(()=>{var _;window.SUPABASE_URL="__VITE_SUPABASE_URL__",window.SUPABASE_ANON_KEY="__VITE_SUPABASE_ANON_KEY__",window.GROQ_API_KEY="__VITE_GROQ_API_KEY__",console.log("ENV INJECTED:",{url:window.SUPABASE_URL,keyLength:((_=window.SUPABASE_ANON_KEY)==null?void 0:_.length)||0}),(!window.SUPABASE_URL||!window.SUPABASE_ANON_KEY)&&console.error("MISSING SUPABASE CONFIG!")})();

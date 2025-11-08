@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>ChatMusic - Đăng Nhập</title>
+
+  <script>
+    // Wait for auth.js module to load
+    window.addEventListener('load', () => {
+      if (!window.authFunctions) {
+        console.error('Auth functions not loaded properly');
+      }
+    });
+  </script>
+  <script type="module" crossorigin src="/manh-music/assets/client-CGC07Of8.js"></script>
+  <script type="module" crossorigin src="/manh-music/assets/env-B3uLN2vR.js"></script>
+  <script type="module" crossorigin src="/manh-music/assets/auth-BuM4aBJL.js"></script>
+  <link rel="stylesheet" crossorigin href="/manh-music/assets/client-CrQPkq46.css">
+  <link rel="stylesheet" crossorigin href="/manh-music/assets/auth-C5zKfWvr.css">
+</head>
+<body class="dark-theme">  
+  <div class="login-container">
+    <h2>🔐 Đăng nhập để sử dụng ứng dụng</h2>
+    <form id="loginForm"> 
+      <div class="input-group">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" placeholder="Nhập email" />
+        <div id="loginEmailError" class="error-message"></div>
+      </div>
+
+      <div class="input-group">
+        <label for="loginPassword">Mật khẩu</label>
+        <input type="password" id="loginPassword" placeholder="Nhập mật khẩu" />
+        <div id="loginPasswordError" class="error-message"></div>
+      </div>
+
+      <button type="submit">Đăng nhập</button>
+    </form>
+    <hr />
+    
+    <div class="social-buttons">
+      <button class="social-btn google" onclick="authFunctions.loginWithGoogle()">
+        Đăng nhập bằng Google
+      </button>
+    </div>
+    
+    <p>Chưa có tài khoản? <a href="signup.html">Tạo tài khoản</a></p>
+  </div>
+</body>
+</html>
