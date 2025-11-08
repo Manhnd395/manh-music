@@ -4,11 +4,12 @@
   "description": "Manh-music",
   "type": "module",
   "main": "app.js",
+  "homepage": "https://github.com/Manhnd395/manh-music",
   "scripts": {
-    "start": "http-server -p 8080",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.0.0",
