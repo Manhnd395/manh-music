@@ -1,18 +1,17 @@
-# Sử dụng Node 18
-FROM node:18
+# Dockerfile
+FROM node:18-alpine
 
 WORKDIR /app
 
+# Copy package files
 COPY package*.json ./
-
 RUN npm install
 
+# Copy source code
 COPY . .
 
-# Cài vite cục bộ (để đảm bảo có trong node_modules)
-RUN npm install vite --save-dev
-
+# Expose port
 EXPOSE 8080
 
-# Sử dụng 0.0.0.0 để mở cổng thật ra ngoài
-CMD ["npx", "vite", "serve", "--host", "0.0.0.0", "--port", "8080"]
+# Chạy Vite dev server (hot reload)
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "8080"]

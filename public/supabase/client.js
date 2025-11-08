@@ -7,7 +7,6 @@ const supabaseUrl = window.SUPABASE_URL;
 const supabaseAnonKey = window.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ Supabase config missing! Check /scripts/config.mjs');
   throw new Error('Supabase config missing');
 }
 
