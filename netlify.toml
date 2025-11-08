@@ -1,13 +1,15 @@
-# netlify.toml — Static site + Inject env vars
-
+# netlify.toml
 [build]
   base = "."
-  publish = "dist"
   command = "npm run build"
+  publish = "dist"
 
-# === HEADERS ===
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,VITE_SUPABASE_URL,VITE_GROQ_API_KEY"
+
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
