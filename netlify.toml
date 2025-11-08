@@ -1,6 +1,7 @@
 # netlify.toml — Static site + Inject env vars
 
 [build]
+  base = "."
   publish = "dist"
   command = "npm run build"
 

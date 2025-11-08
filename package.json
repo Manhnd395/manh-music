@@ -2,7 +2,7 @@
   "name": "final-music-web",
   "version": "1.0.0",
   "description": "Manh-music",
-  "type":"module",
+  "type": "module",
   "main": "app.js",
   "scripts": {
     "start": "http-server -p 8080",
@@ -13,11 +13,10 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.0.0",
     "express": "^5.1.0",
-    "music-metadata-browser": "^2.5.10"
-  }
-  ,
+    "music-metadata-browser": "^2.5.10",
+    "vite": "^5.4.21"
+  },
   "devDependencies": {
-    "http-server": "^14.1.1",
-    "vite": "^5.0.0"
+    "http-server": "^14.1.1"
   }
 }
