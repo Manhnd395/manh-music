@@ -1,4 +1,3 @@
-// vite.config.js
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import globby from 'globby';
@@ -25,6 +24,20 @@ export default defineConfig(async () => {
       outDir: '../dist',
       rollupOptions: {
         input,
+        plugins: [
+          {
+            name: 'html-env-replace',
+            transformIndexHtml: {
+              enforce: 'post',
+              transform(html) {
+                return html
+                  .replace('__VITE_SUPABASE_URL__', import.meta.env.VITE_SUPABASE_URL)
+                  .replace('__VITE_SUPABASE_ANON_KEY__', import.meta.env.VITE_SUPABASE_ANON_KEY)
+                  .replace('__VITE_GROQ_API_KEY__', import.meta.env.VITE_GROQ_API_KEY);
+              },
+            },
+          },
+        ],
       },
     },
   };
