@@ -1,22 +1,24 @@
 // public/env.js
-// ⚙️ Tự động inject env từ Vite vào window (chạy trước client.js)
-(function () {
-  const env = {
-    SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
-    SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
-    GROQ_API_KEY: import.meta.env.VITE_GROQ_API_KEY,
-  };
+// Inject env từ Vite vào window — HOẠT ĐỘNG TRÊN LOCAL + NETLIFY
+(() => {
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const groq = import.meta.env.VITE_GROQ_API_KEY;
 
-  // Gán vào window
-  window.SUPABASE_URL = env.SUPABASE_URL;
-  window.SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY;
-  window.GROQ_API_KEY = env.GROQ_API_KEY;
+  // GÁN LUÔN — KHÔNG ĐIỀU KIỆN
+  window.SUPABASE_URL = url;
+  window.SUPABASE_ANON_KEY = key;
+  window.GROQ_API_KEY = groq;
 
-  // Debug local
-  if (window.location.hostname === 'localhost') {
-    console.log('ENV INJECTED:', {
-      SUPABASE_URL: env.SUPABASE_URL,
-      ANON_KEY: env.SUPABASE_ANON_KEY?.length > 20 ? 'OK' : 'TOO SHORT',
-    });
+  // DEBUG CHO CẢ NETLIFY (tạm thời)
+  console.log('ENV INJECTED:', {
+    SUPABASE_URL: url,
+    ANON_KEY_LENGTH: key?.length || 0,
+    GROQ_OK: !!groq
+  });
+
+  // Cảnh báo nếu thiếu
+  if (!url || !key) {
+    console.error('MISSING SUPABASE CONFIG!', { url, key });
   }
 })();
