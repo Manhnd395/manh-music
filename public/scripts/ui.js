@@ -480,12 +480,27 @@ const tryLoadHome = async () => {  // Làm async để await getUser
     }
 };
 
+
 document.addEventListener('DOMContentLoaded', () => {
     const base = import.meta.env.BASE_URL || '/manh-music/';
-    window.loadComponent(new URL('components/sidebar.html', base).pathname, 'sidebar');
-    window.loadComponent(new URL('components/player-bar.html', base).pathname, 'playerBar');
-    window.loadComponent(new URL('home-content.html', base).pathname, 'mainContentArea');
-    setTimeout(tryLoadHome, 500);
+    const path = (p) => base.replace(/\/+$/, '') + '/' + p.replace(/^\/+/, '');
+
+    window.loadComponent(path('components/sidebar.html'), 'sidebar');
+    window.loadComponent(path('components/player-bar.html'), 'playerBar');
+    window.loadComponent(path('home-content.html'), 'mainContentArea')
+        .then(success => {
+            if (success) {
+                console.log('home-content.html loaded → starting tryLoadHome');
+                setTimeout(tryLoadHome, 100);
+            } else {
+                console.error('home-content.html failed → retrying tryLoadHome in 1s');
+                setTimeout(tryLoadHome, 1000);
+            }
+        })
+        .catch(err => {
+            console.error('home-content.html load error:', err);
+            setTimeout(tryLoadHome, 1000);
+        });
 });
 
 window.fetchLyrics = fetchLyrics; 

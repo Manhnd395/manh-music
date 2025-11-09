@@ -2078,8 +2078,9 @@ window.loadHomePage = async function() {
         console.log('Starting loadHomePage...');
         homePageLoaded = true;
         
-        // 1. Load HTML structure TRƯỚC
-        const response = await fetch('/home-content.html');
+        const base = import.meta.env.BASE_URL || '/manh-music/';
+        const homePath = base.replace(/\/+$/, '') + '/home-content.html';
+        const response = await fetch(homePath);
         if (!response.ok) throw new Error('Không thể tải home-content.html');
         const htmlContent = await response.text();
         mainContentArea.innerHTML = htmlContent;
