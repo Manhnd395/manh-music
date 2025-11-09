@@ -17,8 +17,10 @@
     <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
 
     <!-- Scripts -->
-    <script type="module">
-        import '/env.js';
+    <script>
+        window.SUPABASE_URL = "__VITE_SUPABASE_URL__";
+        window.SUPABASE_ANON_KEY = "__VITE_SUPABASE_ANON_KEY__";
+        window.GROQ_API_KEY = "__VITE_GROQ_API_KEY__";
     </script>
     <script type="module" src="/supabase/client.js"></script>
     <script type="module" src="/scripts/auth.js"></script>
