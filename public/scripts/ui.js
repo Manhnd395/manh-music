@@ -1,41 +1,29 @@
 // ui.js (Phiên bản Nâng cấp - Chỉ xử lý giao diện)
 // const GEMINI_API_KEY = 'AIzaSyCEeQKXZzDAvUQVlHdnNZ9ZvrkCGJN9Abc';
 
-window.loadComponent = async function(componentPath, targetElementId) {
-    const target = document.getElementById(targetElementId);
+window.loadComponent = async function(relativePath, targetId) {
+    const target = document.getElementById(targetId);
     if (!target) {
-        console.error(`Lỗi: Không tìm thấy phần tử target ID: ${targetElementId}`);
-        return;
+        console.error(`Target #${targetId} not found`);
+        return false;
     }
 
-    const basePath = import.meta.env.BASE_URL || '/manh-music/';
-    const fullPath = new URL(componentPath, basePath).pathname;
+    // TẠO ĐƯỜNG DẪN ĐÚNG VỚI BASE_URL
+    const base = import.meta.env.BASE_URL || '/manh-music/';
+    const url = new URL(relativePath.replace(/^\/+/, ''), window.location.origin + base).href;
+
     try {
-        const response = await fetch(fullPath);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        console.log(`Loading: ${url} → #${targetId}`);
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const html = await response.text();
         target.innerHTML = html;
-        console.log(`Đã tải thành công component: ${componentPath}`);
-        
-        if (targetElementId === 'playerBar') {
-            setTimeout(() => {
-            if (window.initializePlayerControls) {
-                window.initializePlayerControls();
-                console.log('Player controls initialized after loading component.');
-            } else {
-                console.warn('initializePlayerControls chưa sẵn sàng, retrying...');
-                // Retry sau 500ms nếu chưa sẵn sàng
-                setTimeout(() => {
-                    if (window.initializePlayerControls) {
-                        window.initializePlayerControls();
-                    }
-                }, 500);
-            }
-        }, 100);
-        }
-
+        console.log(`Loaded: ${relativePath}`);
+        return true;
     } catch (error) {
-        console.error(`Lỗi tải component ${componentPath}:`, error);
+        console.error(`Failed to load ${relativePath}:`, error);
+        target.innerHTML = `<p class="error-message">Lỗi tải ${targetId}</p>`;
+        return false;
     }
 };
 
