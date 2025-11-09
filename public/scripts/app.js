@@ -64,7 +64,8 @@ async function onSupabaseSessionRestored(e) {
     console.warn('No session after restore - redirecting to login if on protected page');
     // Nếu đang ở player.html và không có session thì redirect
     if (window.location.pathname.includes('player.html')) {
-      window.location.href = '/index.html';
+        const basePath = import.meta.env.BASE_URL || '/manh-music/';
+        window.location.href(basePath + 'index.html');
     }
   }
 }
@@ -2605,7 +2606,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 initializeApp(user);
             } else {
                 console.error('getUser also failed:', error);
-                window.location.href = '/index.html';  // Chỉ redirect nếu fail hoàn toàn
+                const basePath = import.meta.env.BASE_URL || '/manh-music/';
+                window.location.href(basePath + 'index.html');
             }
         });
     }
@@ -2647,13 +2649,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (error) {
                     console.error('❌ Set session error:', error);
-                    window.location.href = '/index.html';
+                    const basePath = import.meta.env.BASE_URL || '/manh-music/';
+                    window.location.href(basePath + 'index.html');
                     return;
                 }
 
                 if (!session?.user) {
                     console.warn('⚠️ setSession returned session without user');
-                    window.location.href = '/index.html';
+                    const basePath = import.meta.env.BASE_URL || '/manh-music/';
+                    window.location.href(basePath + 'index.html');
                     return;
                 }
 
@@ -2666,7 +2670,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             } catch (err) {
                 console.error('❌ OAuth processing error:', err);
-                window.location.href = '/index.html';
+                const basePath = import.meta.env.BASE_URL || '/manh-music/';
+                window.location.href(basePath + 'index.html');
                 return;
             }
         }
@@ -2684,12 +2689,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         } else {
             console.warn('⚠️ No active session found — redirecting to login');
-            window.location.href = '/index.html';
+            const basePath = import.meta.env.BASE_URL || '/manh-music/';
+            window.location.href(basePath + 'index.html');
             return;
         }
     } catch (err) {
         console.error('❌ Error checking existing session:', err);
-        window.location.href = '/index.html';
+        const basePath = import.meta.env.BASE_URL || '/manh-music/';
+        window.location.href(basePath + 'index.html');
         return;
     }
 });
@@ -2720,14 +2727,16 @@ supabase.auth.onAuthStateChange(async (event, session) => {
         window.isPlaying = false;
 
         if (!window.location.pathname.includes('index.html')) {
-            window.location.href = '/index.html';
+            const basePath = import.meta.env.BASE_URL || '/manh-music/';
+            window.location.href(basePath + 'index.html');
         }
     }
 });
 
 function navigateTo(target) {
     if (target === 'home') {
-        window.location.href = '/player.html';
+        const basePath = import.meta.env.BASE_URL || '/manh-music/';
+        window.location.href(basePath + 'index.html');
     } 
 }
 

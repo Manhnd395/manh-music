@@ -27,19 +27,22 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             // Redirect nếu đang ở login/signup
             if (currentPath === '/' || currentPath.includes('index.html') || currentPath.includes('signup.html')) {
-                window.location.href = "/player.html";
+                const basePath = import.meta.env.BASE_URL || '/manh-music/';
+                window.location.href = basePath + 'player.html';
                 return;
             }
         } else {
             console.warn('No session - show login form');
             if (currentPath.includes('player.html')) {
-                window.location.href = '/index.html';
+                const basePath = import.meta.env.BASE_URL || '/manh-music/';
+                window.location.href = basePath + 'index.html';
             }
         }
     } catch (err) {
         console.error('Session restore error:', err); // BÂY GIỜ SẼ LOG
         if (currentPath.includes('player.html')) {
-            window.location.href = '/index.html';
+            const basePath = import.meta.env.BASE_URL || '/manh-music/';
+            window.location.href = basePath + 'index.html';
         }
     }
 
@@ -202,7 +205,8 @@ async function signup() {
         }
 
         alert('Đăng ký thành công! Vui lòng kiểm tra email để xác nhận và đăng nhập.');
-        window.location.href = '/index.html';
+        const basePath = import.meta.env.BASE_URL || '/manh-music/';
+        window.location.href = basePath + 'index.html';
         return;
 
     } catch (error) {
@@ -226,14 +230,13 @@ async function loginWithEmail() {
         return;
     }
 
-    // Disable button
     if (loginBtn) {
         loginBtn.disabled = true;
         loginBtn.textContent = 'Đang đăng nhập...';
     }
 
     try {
-        console.log('🔄 Starting signInWithPassword for', email);
+        console.log('Starting signInWithPassword for', email);
         const { data: { user }, error } = await supabase.auth.signInWithPassword({ email, password });
 
         if (error) {
@@ -249,40 +252,25 @@ async function loginWithEmail() {
             return;
         }
 
-        console.log('✅ signIn success, user:', user.email);
+        console.log('signIn success, user:', user.email);
 
-        // Await getSession
-        let confirmedSession = null;
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            confirmedSession = session;
-            if (confirmedSession?.user) {
-                console.log('💾 Session confirmed:', confirmedSession.user.email);
-            } else {
-                console.warn('⚠️ getSession returned no session - fallback');
-            }
-        } catch (getErr) {
-            console.warn('getSession error:', getErr.message);
-        }
+        // Await session
+        const { data: { session } } = await supabase.auth.getSession();
+        window.currentUser = session?.user || user;
 
-        // Set user & dispatch
-        window.currentUser = confirmedSession?.user || user;
-        console.log('🔄 Set currentUser:', window.currentUser.id);
-        const sessionForDispatch = confirmedSession || { user };
-        window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { detail: { session: sessionForDispatch } }));
-        window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { detail: { event: 'SIGNED_IN', session: sessionForDispatch } }));
+        // Dispatch
+        window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { detail: { session } }));
+        window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { detail: { event: 'SIGNED_IN', session } }));
 
         // Clear form
         document.getElementById('loginEmail').value = '';
         document.getElementById('loginPassword').value = '';
 
-        // Success message
         displayError('loginPassword', 'Đăng nhập thành công! Đang chuyển hướng...');
 
         // Check email confirmed
         if (user.app_metadata?.provider === 'email' && !user.email_confirmed_at) {
-            console.log('❌ Email not confirmed');
-            alert('Email chưa xác nhận! Vui lòng kiểm tra mail và click link xác nhận.');
+            alert('Email chưa xác nhận! Vui lòng kiểm tra mail.');
             if (loginBtn) {
                 loginBtn.disabled = false;
                 loginBtn.textContent = 'Đăng nhập';
@@ -290,52 +278,62 @@ async function loginWithEmail() {
             return;
         }
 
-        console.log('✅ Email confirmed OK');
+        console.log('Email confirmed OK');
 
-        // Upsert profile async
+        // === SỬA TẠI ĐÂY: DÙNG Promise.race ĐỂ GIỚI HẠN THỜI GIAN ===
+        const timeoutPromise = (ms) => new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), ms)
+        );
+
         let profile = null;
         try {
-            const { data: selectData, error: selectError } = await supabase
-                .from('users')
-                .select('username, birthday, avatar_url')
-                .eq('id', user.id)
-                .single()
-                .timeout(2000);
+            const { data: selectData, error: selectError } = await Promise.race([
+                supabase
+                    .from('users')
+                    .select('username, birthday, avatar_url')
+                    .eq('id', user.id)
+                    .single(),
+                timeoutPromise(3000) // 3 giây
+            ]);
             profile = selectData;
             if (selectError && selectError.code !== 'PGRST116') {
                 console.error('Select profile error:', selectError);
             }
         } catch (e) {
-            console.warn('Select profile timeout:', e);
+            if (e.message !== 'Timeout') console.warn('Select profile failed:', e);
         }
 
         const username = profile?.username || user.user_metadata?.username || email.split('@')[0];
         const birthday = profile?.birthday || user.user_metadata?.birthday || null;
 
-        supabase
-            .from('users')
-            .upsert({
-                id: user.id,
-                email: user.email,
-                username,
-                birthday,
-                avatar_url: profile?.avatar_url || null,
-                updated_at: new Date().toISOString()
-            })
-            .timeout(2000)
-            .then(({ error: upsertError }) => {
-                if (upsertError) console.error('Upsert error (async):', upsertError);
-                else console.log('✅ Profile upserted (async)');
-            })
-            .catch(e => console.warn('Upsert timeout (async):', e));
+        // Upsert với timeout
+        try {
+            await Promise.race([
+                supabase
+                    .from('users')
+                    .upsert({
+                        id: user.id,
+                        email: user.email,
+                        username,
+                        birthday,
+                        avatar_url: profile?.avatar_url || null,
+                        updated_at: new Date().toISOString()
+                    }),
+                timeoutPromise(3000)
+            ]);
+            console.log('Profile upserted');
+        } catch (e) {
+            if (e.message !== 'Timeout') console.warn('Upsert failed:', e);
+            else console.log('Upsert timeout - continue');
+        }
 
-        // Redirect delay 300ms
         setTimeout(() => {
             if (loginBtn) {
                 loginBtn.disabled = false;
                 loginBtn.textContent = 'Đăng nhập';
             }
-            window.location.href = '/player.html';
+            const basePath = import.meta.env.BASE_URL || '/manh-music/';
+            window.location.href = basePath + 'player.html';
         }, 300);
 
     } catch (error) {
@@ -347,7 +345,6 @@ async function loginWithEmail() {
         }
     }
 }
-
 
 async function loginWithGoogle() {
     console.log('Login with Google called');
@@ -427,13 +424,15 @@ async function logout() {
 
         console.log('Logout cleanup complete');
 
-        // 5. REDIRECT NGAY LẬP TỨC
-        window.location.replace('/index.html');
+        
+        const basePath = import.meta.env.BASE_URL || '/manh-music/';
+        window.location.replace(basePath + 'index.html');
 
     } catch (error) {
         console.error('Lỗi logout:', error);
         localStorage.setItem('manh-music-logout', 'true');
-        window.location.replace('/index.html');
+        const basePath = import.meta.env.BASE_URL || '/manh-music/';
+        window.location.replace(basePath + 'index.html');
     }
 }
 
@@ -444,7 +443,8 @@ supabase.auth.onAuthStateChange((event, session) => {
         window.currentUser = session.user;
         // Tự động redirect nếu đang ở index.html
         if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
-            window.location.href = '/player.html';
+            const basePath = import.meta.env.BASE_URL || '/manh-music/';
+            window.location.href = basePath + 'player.html';
         }
         // Dispatch để sync
         window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { detail: { event, session } }));
@@ -452,7 +452,8 @@ supabase.auth.onAuthStateChange((event, session) => {
 
     if (event === 'SIGNED_OUT') {
         window.currentUser = null;
-        window.location.href = '/index.html';
+        const basePath = import.meta.env.BASE_URL || '/manh-music/';
+        window.location.href = basePath + 'index.html';
     }
 });
 
