@@ -32,9 +32,10 @@ jobs:
       # INJECT ENV TRỰC TIẾP VÀO index.html
       - name: Inject Environment Variables
         run: |
-          sed -i "s|__VITE_SUPABASE_URL__|${{ secrets.VITE_SUPABASE_URL }}|g" public/index.html
-          sed -i "s|__VITE_SUPABASE_ANON_KEY__|${{ secrets.VITE_SUPABASE_ANON_KEY }}|g" public/index.html
-          sed -i "s|__VITE_GROQ_API_KEY__|${{ secrets.VITE_GROQ_API_KEY }}|g" public/index.html
+          find public -name "*.html" -exec sed -i \
+            -e "s|__VITE_SUPABASE_URL__|${{ secrets.VITE_SUPABASE_URL }}|g" \
+            -e "s|__VITE_SUPABASE_ANON_KEY__|${{ secrets.VITE_SUPABASE_ANON_KEY }}|g" \
+            -e "s|__VITE_GROQ_API_KEY__|${{ secrets.VITE_GROQ_API_KEY }}|g" {} \;
 
       - name: Build
         run: npm run build

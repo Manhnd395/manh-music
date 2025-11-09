@@ -16,6 +16,7 @@ if (window.location.hostname === 'localhost') {
     console.log('DEBUG: ANON_KEY length:', supabaseAnonKey?.length || 0);
 }
 
+
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: { persistSession: true },
 });
