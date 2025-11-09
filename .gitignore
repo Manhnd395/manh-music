@@ -56,7 +56,7 @@ Thumbs.db
 # ──────────────────────────────────────────────────────────────
 # 5. PROJECT‑SPECIFIC (ise‑music)
 # ──────────────────────────────────────────────────────────────
-assets/temp/                     # Temp upload
+               # Temp upload
 supabase/config.toml             # Local Supabase config
 .supabase/                       # Supabase CLI folder
 .netlify/                        # Netlify CLI folder
