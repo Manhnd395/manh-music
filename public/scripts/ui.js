@@ -7,8 +7,11 @@ window.loadComponent = async function(componentPath, targetElementId) {
         console.error(`Lỗi: Không tìm thấy phần tử target ID: ${targetElementId}`);
         return;
     }
+
+    const basePath = import.meta.env.BASE_URL || '/manh-music/';
+    const fullPath = new URL(componentPath, basePath).pathname;
     try {
-        const response = await fetch(componentPath);
+        const response = await fetch(fullPath);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const html = await response.text();
         target.innerHTML = html;
@@ -478,9 +481,10 @@ const tryLoadHome = async () => {  // Làm async để await getUser
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    window.loadComponent('/components/sidebar.html', 'sidebar');
-    window.loadComponent('/components/player-bar.html', 'playerBar'); 
-    window.loadComponent('/home-content.html', 'mainContentArea');
+    const base = import.meta.env.BASE_URL || '/manh-music/';
+    window.loadComponent(new URL('components/sidebar.html', base).pathname, 'sidebar');
+    window.loadComponent(new URL('components/player-bar.html', base).pathname, 'playerBar');
+    window.loadComponent(new URL('home-content.html', base).pathname, 'mainContentArea');
     setTimeout(tryLoadHome, 500);
 });
 
