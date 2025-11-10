@@ -27,6 +27,11 @@ window.loadComponent = async function(relativePath, targetId) {
     }
 };
 
+window.getAssetUrl = function(relativePath) {
+    const base = import.meta.env.BASE_URL || '/manh-music/';
+    return base.replace(/\/+$/, '') + '/' + relativePath.replace(/^\/+/, '');
+};
+
 export async function loadHomeContent() {
     try {
         const container = document.getElementById('mainContentArea');
@@ -48,6 +53,7 @@ export async function loadHomeContent() {
     }
 }
 
+const defaultCover = window.getAssetUrl('assets/default-cover.webp');
 window.updatePlayerBar = function(track) {
     const cover = document.getElementById('trackCover');
     const title = document.getElementById('trackTitle');
@@ -95,12 +101,12 @@ window.updatePlayerBar = function(track) {
 
     // Render nội dung chính
     rightPanel.innerHTML = `
-        <div class="right-panel-content">
+        <div class="right-panel-content">s
             <div class="current-playlist-header">${window.currentPlaylistSource || 'Gợi ý cho bạn'}</div>
-            <img src="${track.cover_url || '/assets/default-cover.webp'}" 
+            <img src="${track.cover_url || defaultCover}" 
                  alt="${track.title} cover" 
                  class="track-cover-large" 
-                 onerror="this.src='/assets/default-cover.webp'">
+                 onerror="this.src='${defaultCover}'">
             <div class="track-title-large">${track.title || 'Unknown Title'}</div>
             <div class="track-artist-large">${track.artist || 'Unknown Artist'}</div>
             

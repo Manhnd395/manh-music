@@ -29,7 +29,6 @@ let initializationInProgress = false;
 let homePageLoaded = false;
 
 let isTransitioning = false;
-const FALLBACK_COVER = '/assets/default-cover.webp';
 let recentlyPaused = false;
 window.isPlaying = isPlaying;
 window.currentUser = window.currentUser || null;
@@ -37,6 +36,7 @@ window.currentUser = window.currentUser || null;
 window.appFunctions = window.appFunctions || {};
 // window.appFunctions.getCurrentUserId = async () => window.currentUser?.id || null;
 
+const FALLBACK_COVER = window.getAssetUrl('assets/default-cover.webp');
 
 console.log('✅ appFunctions initialized');
 
@@ -932,8 +932,8 @@ window.renderRecentHistory = async function() {
             <div class="track-item playable-track" onclick='event.stopPropagation(); window.playTrack(${JSON.stringify(item.tracks)}, [], -1)'>
                 <div class="track-info">
                     <span class="track-index">${i + 1}</span>
-                    <img src="${item.tracks.cover_url || '/assets/default-cover.webp'}" 
-                         class="track-cover" onerror="this.src='/assets/default-cover.webp'">
+                    <img src="${item.tracks.cover_url || FALLBACK_COVER}" 
+                         class="track-cover" onerror="this.src='${FALLBACK_COVER}'">
                     <div class="track-details">
                         <div class="track-name">${escapeHtml(item.tracks.title)}</div>
                         <div class="track-artist">${escapeHtml(item.tracks.artist)}</div>
@@ -1007,7 +1007,7 @@ window.renderRecommendations = async function() {
         <div class="track-item playable-track" onclick='event.stopPropagation(); window.playTrack(${JSON.stringify(t)}, [], -1)'>
             <div class="track-info">
                 <span class="track-index">${i + 1}</span>
-                <img src="${t.cover_url || '/assets/default-cover.webp'}" class="track-cover" onerror="this.src='/assets/default-cover.webp'">
+                <img src="${t.cover_url || FALLBACK_COVER}" class="track-cover" onerror="this.src='${FALLBACK_COVER}'">
                 <div class="track-details">
                     <div class="track-name">${escapeHtml(t.title)}</div>
                     <div class="track-artist">${escapeHtml(t.artist)}</div>
@@ -1470,7 +1470,7 @@ window.displayTracks = function(tracks, container) {
       
         trackElement.innerHTML = `
             <div class="track-index">${index + 1}.</div>
-            <img src="${track.cover_url || '/assets/default-cover.webp'}" alt="${title} by ${artist}" class="track-cover" />
+            <img src="${track.cover_url || FALLBACK_COVER}" alt="${title} by ${artist}" class="track-cover" />
             <div class="track-info">
                 <div class="track-details">
                     <strong class="track-name marquee-container">
@@ -1932,14 +1932,14 @@ window.renderTrackItem = function(track, index, containerId) {
 
     const safeTitle = (track.title || 'Unknown Title').trim();
     const safeArtist = (track.artist || 'Unknown Artist').trim();
-    const safeCover = track.cover_url || '/assets/default-cover.webp';
+    const safeCover = track.cover_url || FALLBACK_COVER;
 
     // HTML cho track item
     item.innerHTML = `
         <div class="track-info">
             <span class="track-index">${index + 1}</span>
             <img src="${safeCover}" alt="${safeTitle}" class="track-cover" 
-                 onerror="this.src='/assets/default-cover.webp'">
+                 onerror="this.src='${FALLBACK_COVER}'">
             <div class="track-details">
                 <div class="track-name marquee-container">
                     <span class="track-title-inner">${safeTitle}</span>
@@ -2439,9 +2439,9 @@ async function loadRecentHistory() {
             <div class="track-item playable-track" onclick='event.stopPropagation(); window.playTrack(${JSON.stringify(item.tracks)}, [], -1)'>
                 <div class="track-info">
                     <span class="track-index">${index + 1}</span>
-                    <img src="${item.tracks.cover_url || '/assets/default-cover.webp'}" 
+                    <img src="${item.tracks.cover_url || FALLBACK_COVER}" 
                          alt="Cover" class="track-cover" 
-                         onerror="this.src='/assets/default-cover.webp'">
+                         onerror="this.src='${FALLBACK_COVER}'">
                     <div class="track-details">
                         <div class="track-name">${escapeHtml(item.tracks.title)}</div>
                         <div class="track-artist">${escapeHtml(item.tracks.artist)}</div>

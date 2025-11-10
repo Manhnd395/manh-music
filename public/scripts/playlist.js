@@ -267,6 +267,7 @@ window.deletePlaylistCover = async function(playlistId) {
     }
 };
 
+const defaultCover = window.getAssetUrl('assets/default-cover.webp');
 /**
  * Render danh sách bài hát (Được dùng chung cho Playlist, Uploads, Search, Recommend)
  * @param {Array<Object>} tracks - Danh sách các đối tượng track
@@ -308,7 +309,7 @@ function renderTracks(tracks, container) {
             <div class="track-info">
                 <span class="track-number">${trackNumber}.</span>
                 <img src="${safeCoverUrl}" alt="${safeTitle} by ${safeArtist}" class="track-cover" 
-                     onerror="this.src='/assets/default-cover.webp';" />
+                     onerror="this.src='${defaultCover}';" />
                 <div class="track-details">
                     <strong class="track-name marquee-container">
                         <span class="track-title-inner">${titleInnerHTML}</span>
