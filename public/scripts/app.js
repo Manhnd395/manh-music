@@ -2064,82 +2064,63 @@ window.loadMyUploads = async function(forceRefresh = false) {
 
 
 window.loadHomePage = async function() {
-    console.log('CALL loadHomePage, currentUser:', window.currentUser, 'at', performance.now());
     if (homePageLoaded) {
         console.log('Home page already loaded, skipping');
         return;
     }
-    
+
     const mainContentArea = document.getElementById('mainContentArea');
     if (!mainContentArea) {
-        console.error('No mainContentArea for home page');
+        console.error('mainContentArea not found');
         return;
     }
-   
+
     try {
-        console.log('Starting loadHomePage...');
         homePageLoaded = true;
-        
-        const baseUrl = window.location.origin + '/manh-music'; 
-        const homePath = `${baseUrl}/home-content.html`.replace(/\/+/g, '/');
+        console.log('Starting loadHomePage...');
+
+        // ĐÚNG URL
+        const homePath = window.getBaseUrl() + '/home-content.html';
+        console.log('Fetching home content from:', homePath);
 
         const response = await fetch(homePath);
-        if (!response.ok) throw new Error('Không thể tải home-content.html');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
         const htmlContent = await response.text();
         mainContentArea.innerHTML = htmlContent;
-        console.log('Home content loaded');
+        console.log('home-content.html loaded into #mainContentArea');
 
-        // Đợi các container sẵn sàng
-        await new Promise(resolve => {
-            let checks = 0;
-            const interval = setInterval(() => {
-                const playlist = document.getElementById('playlistGrid');
-                const history = document.getElementById('historyTrackList');
-                const recs = document.getElementById('recommendList');
-                if (history && recs) {
-                    clearInterval(interval);
-                    console.log('All home containers ready - proceeding sequential loads');
-                    resolve();
-                } else if (checks++ > 10) {
-                    console.warn('Some containers timeout - partial load proceeding');
-                    clearInterval(interval);
-                    resolve();
-                }
-            }, 300);
-        });
+        // CHỜ DOM CẬP NHẬT
+        await new Promise(resolve => setTimeout(resolve, 100));
 
-        // 2. Load data theo THỨ TỰ TUẦN TỰ
-        console.log('Loading home page data sequentially...');
-        
-        // BƯỚC 1: Danh sách phát
-        console.log('Step 1: Loading playlists...');
-        if (window.appFunctions?.loadUserPlaylists) {
-            await window.appFunctions.loadUserPlaylists();
-            console.log('Playlists loaded');
+        // KIỂM TRA CÁC ELEMENT CẦN THIẾT
+        const homeSection = document.getElementById('home-section');
+        const playlistGrid = document.getElementById('playlistGrid');
+        const historyList = document.getElementById('historyTrackList');
+        const recommendList = document.getElementById('recommendList');
+
+        if (!homeSection) {
+            console.error('home-section not found in loaded HTML!');
+            mainContentArea.innerHTML += '<p class="error-message">Thiếu #home-section trong home-content.html</p>';
+            return;
         }
 
-        // BƯỚC 2: Lịch sử gần đây (5 bài)
-        console.log('Step 2: Loading recent history...');
-        if (window.renderRecentHistory) {
-            await window.renderRecentHistory();
-            console.log('Recent history loaded (5 tracks)');
-        }
+        console.log('All home elements ready');
 
-        // BƯỚC 3: Gợi ý (10 bài top)
-        console.log('Step 3: Loading recommendations...');
-        if (window.renderRecommendations) {
-            await window.renderRecommendations();
-            console.log('Recommendations loaded (10 tracks)');
-        }
+        // LOAD DATA
+        await window.appFunctions.loadUserPlaylists();
+        await window.renderRecentHistory();
+        await window.renderRecommendations();
 
-        console.log('All home components ready');
+        // HIỆN TRANG CHỦ
+        window.switchTab('home');
 
     } catch (error) {
-        console.error("Lỗi tải giao diện Trang Chủ:", error);
+        console.error('Lỗi loadHomePage:', error);
         homePageLoaded = false;
         mainContentArea.innerHTML = `
             <div class="error-message">
-                <h3>Lỗi tải trang chủ</h3>
+                <h3>Không tải được trang chủ</h3>
                 <p>${error.message}</p>
                 <button onclick="window.loadHomePage()" class="btn-retry">Thử lại</button>
             </div>
@@ -2490,21 +2471,20 @@ window.testAllTrackUrls = async function() {
 };
 
 window.switchTab = function(tabName, param = null) {
-    console.log('switchTab called:', tabName, param);
-    
-    // Ẩn tất cả section
-    document.querySelectorAll('.page-section').forEach(sec => {
+    console.log('switchTab:', tabName, param);
+
+    const container = document.getElementById('mainContentArea');
+    if (!container) return console.error('mainContentArea not found');
+
+    container.querySelectorAll('.page-section').forEach(sec => {
         sec.style.display = 'none';
     });
 
-    // Hiện section tương ứng
     let targetId;
     if (tabName === 'home') targetId = 'home-section';
     else if (tabName === 'detail-playlist') targetId = 'playlistDetail';
     else if (tabName === 'search') targetId = 'search-section';
     else if (tabName === 'uploads') targetId = 'myUploadsSection';
-    else if (tabName === 'profile') targetId = 'profile-section';
-    else if (tabName === 'recommend') targetId = 'recommend-section';
 
     const target = document.getElementById(targetId);
     if (target) {
@@ -2514,21 +2494,13 @@ window.switchTab = function(tabName, param = null) {
         console.warn(`Section not found: ${targetId}`);
     }
 
-    // Xử lý param (nếu có)
-    if (tabName === 'detail-playlist' && param) {
-        setTimeout(() => {
-            if (window.loadDetailPlaylist) {
-                window.loadDetailPlaylist(param);
-            }
-        }, 100);
+    if (tabName === 'detail-playlist' && param && window.loadDetailPlaylist) {
+        setTimeout(() => window.loadDetailPlaylist(param), 100);
     }
-
-    // Cập nhật active tab
+    
     document.querySelectorAll('.sidebar-link').forEach(link => {
         link.classList.remove('active');
-        if (link.dataset.tab === tabName) {
-            link.classList.add('active');
-        }
+        if (link.dataset.tab === tabName) link.classList.add('active');
     });
 };
 
