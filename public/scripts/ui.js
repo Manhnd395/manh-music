@@ -1,6 +1,11 @@
 // ui.js (Phiên bản Nâng cấp - Chỉ xử lý giao diện)
 // const GEMINI_API_KEY = 'AIzaSyCEeQKXZzDAvUQVlHdnNZ9ZvrkCGJN9Abc';
 
+window.getAssetUrl = function(relativePath) {
+    const base = import.meta.env.BASE_URL || '/manh-music/';
+    return base.replace(/\/+$/, '') + '/' + relativePath.replace(/^\/+/, '');
+};
+
 window.loadComponent = async function(relativePath, targetId) {
     const target = document.getElementById(targetId);
     if (!target) {
@@ -25,11 +30,6 @@ window.loadComponent = async function(relativePath, targetId) {
         target.innerHTML = `<p class="error-message">Lỗi tải ${targetId}</p>`;
         return false;
     }
-};
-
-window.getAssetUrl = function(relativePath) {
-    const base = import.meta.env.BASE_URL || '/manh-music/';
-    return base.replace(/\/+$/, '') + '/' + relativePath.replace(/^\/+/, '');
 };
 
 export async function loadHomeContent() {
