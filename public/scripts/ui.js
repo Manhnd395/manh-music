@@ -2,8 +2,16 @@
 // const GEMINI_API_KEY = 'AIzaSyCEeQKXZzDAvUQVlHdnNZ9ZvrkCGJN9Abc';
 
 window.getAssetUrl = function(relativePath) {
-    const base = import.meta.env.BASE_URL || '/manh-music/';
-    return base.replace(/\/+$/, '') + '/' + relativePath.replace(/^\/+/, '');
+    const getBaseUrl = () => {
+        const script = document.querySelector('script[src*="ui.js"]');
+        if (script) {
+            const scriptSrc = script.src;
+            return scriptSrc.substring(0, scriptSrc.lastIndexOf('/scripts/'));
+        }
+        return window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+    };
+    const base = getBaseUrl();
+    return `${window.location.origin}${base}/${relativePath.replace(/^\/+/, '')}`;  
 };
 
 window.loadComponent = async function(relativePath, targetId) {
@@ -485,8 +493,17 @@ const tryLoadHome = async () => {  // Làm async để await getUser
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const base = import.meta.env.BASE_URL || '/manh-music/';
-    const path = (p) => base.replace(/\/+$/, '') + '/' + p.replace(/^\/+/, '');
+    const getBaseUrl = () => {
+        const script = document.querySelector('script[src*="ui.js"]');
+        if (script) {
+            const scriptSrc = script.src;
+            return scriptSrc.substring(0, scriptSrc.lastIndexOf('/scripts/'));
+        }
+        return window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+    };
+
+    const baseUrl = getBaseUrl();
+    const path = (p) => p.replace(/^\/+/, '');
 
     window.loadComponent(path('components/sidebar.html'), 'sidebar');
     window.loadComponent(path('components/player-bar.html'), 'playerBar');
@@ -499,10 +516,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('home-content.html failed → retrying tryLoadHome in 1s');
                 setTimeout(tryLoadHome, 1000);
             }
-        })
-        .catch(err => {
-            console.error('home-content.html load error:', err);
-            setTimeout(tryLoadHome, 1000);
         });
 });
 

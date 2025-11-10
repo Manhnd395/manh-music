@@ -149,7 +149,6 @@ window.switchTab = function (tabName, playlistId = null) {
         window.renderRecommendations();
     } 
     
-    // Cập nhật trạng thái Active trên Sidebar
     navLinks.forEach(link => {
         const linkTarget = link.getAttribute('data-section');
         

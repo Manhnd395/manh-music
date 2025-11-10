@@ -37,8 +37,7 @@ window.appFunctions = window.appFunctions || {};
 // window.appFunctions.getCurrentUserId = async () => window.currentUser?.id || null;
 
 const FALLBACK_COVER = window.getAssetUrl('assets/default-cover.webp');
-
-console.log('✅ appFunctions initialized');
+console.log('FALLBACK_COVER URL:', FALLBACK_COVER);
 
 window.currentPlaylists = window.currentPlaylists || {};
 
@@ -64,8 +63,9 @@ async function onSupabaseSessionRestored(e) {
     console.warn('No session after restore - redirecting to login if on protected page');
     // Nếu đang ở player.html và không có session thì redirect
     if (window.location.pathname.includes('player.html')) {
-        const basePath = import.meta.env.BASE_URL || '/manh-music/';
-        window.location.href(basePath + 'index.html');
+        const redirectUrl = window.location.origin + '/manh-music/index.html';
+        console.log('Redirecting to login:', redirectUrl);
+        window.location.href = redirectUrl;
     }
   }
 }
@@ -907,6 +907,8 @@ window.renderRecentHistory = async function() {
         return;
     }
 
+    const defaultCover = window.getAssetUrl('assets/default-cover.webp'); // ← DÙNG TRỰC TIẾP
+
     try {
         const { data: history, error } = await supabase
             .from('history')
@@ -932,8 +934,8 @@ window.renderRecentHistory = async function() {
             <div class="track-item playable-track" onclick='event.stopPropagation(); window.playTrack(${JSON.stringify(item.tracks)}, [], -1)'>
                 <div class="track-info">
                     <span class="track-index">${i + 1}</span>
-                    <img src="${item.tracks.cover_url || FALLBACK_COVER}" 
-                         class="track-cover" onerror="this.src='${FALLBACK_COVER}'">
+                    <img src="${item.tracks.cover_url || defaultCover}" 
+                         class="track-cover" onerror="this.src='${defaultCover}'">
                     <div class="track-details">
                         <div class="track-name">${escapeHtml(item.tracks.title)}</div>
                         <div class="track-artist">${escapeHtml(item.tracks.artist)}</div>
@@ -972,8 +974,6 @@ window.loadTopTracks = async function(limit = 10) {
             .limit(limit);
 
         if (error) throw error;
-
-        // Sắp xếp lại theo play_count (đảm bảo)
         const sorted = data
             .sort((a, b) => (b.play_count || 0) - (a.play_count || 0))
             .slice(0, limit);
@@ -997,6 +997,7 @@ window.renderRecommendations = async function() {
 
     container.innerHTML = '<p>Đang tải gợi ý...</p>';
     const topTracks = await window.loadTopTracks(10);
+    const defaultCover = window.getAssetUrl('assets/default-cover.webp');
 
     if (topTracks.length === 0) {
         container.innerHTML = '<p class="empty-message">Chưa có gợi ý.</p>';
@@ -1007,7 +1008,7 @@ window.renderRecommendations = async function() {
         <div class="track-item playable-track" onclick='event.stopPropagation(); window.playTrack(${JSON.stringify(t)}, [], -1)'>
             <div class="track-info">
                 <span class="track-index">${i + 1}</span>
-                <img src="${t.cover_url || FALLBACK_COVER}" class="track-cover" onerror="this.src='${FALLBACK_COVER}'">
+                <img src="${t.cover_url || defaultCover}" class="track-cover" onerror="this.src='${defaultCover}'">
                 <div class="track-details">
                     <div class="track-name">${escapeHtml(t.title)}</div>
                     <div class="track-artist">${escapeHtml(t.artist)}</div>
@@ -1031,7 +1032,7 @@ function openPlaylistDetail(playlistId) {
 }
 window.appFunctions.openPlaylistDetail = openPlaylistDetail;
 
-async function handleCreatePlaylistSubmit(event) {
+window.handleCreatePlaylistSubmit = async function(event) {
     event.preventDefault();
    
     const form = event.target;
@@ -1048,47 +1049,46 @@ async function handleCreatePlaylistSubmit(event) {
    
     const user = window.currentUser;
     if (!user) {
-        console.error('Lỗi: Người dùng chưa đăng nhập hoặc lỗi xác thực!');
         alert('Vui lòng đăng nhập để tạo danh sách phát!');
         return;
     }
 
     try {
-        // SỬA: Dùng createPlaylist từ playlist.js
         const playlistData = {
             name: playlistName,
             color: playlistColor,
             cover_url: null
         };
         
-        // Upload cover nếu có
-        if (playlistCoverFile) {
-            const uploadedUrl = await uploadPlaylistCover(user.id, null, playlistCoverFile);
+        const newPlaylist = await createPlaylist(playlistData);
+        console.log('Playlist created:', newPlaylist);
+
+        if (playlistCoverFile && newPlaylist?.id) {
+            const uploadedUrl = await uploadPlaylistCover(user.id, newPlaylist.id, playlistCoverFile);
             if (uploadedUrl) {
-                playlistData.cover_url = uploadedUrl;
+                const { error } = await supabase
+                    .from('playlists')
+                    .update({ cover_url: uploadedUrl })
+                    .eq('id', newPlaylist.id);
+                if (error) console.error('Lỗi cập nhật cover_url:', error);
             }
         }
-        
-        const newPlaylist = await createPlaylist(playlistData);
-        console.log('✅ Tạo playlist thành công:', newPlaylist);
         
         closeModal('createPlaylistModal');
         window.cachedPlaylists = null;
         await window.appFunctions.loadUserPlaylists(true);
         
-        // Xử lý pending track
         const pendingTrackId = localStorage.getItem('pendingTrackId');
-        if (pendingTrackId && newPlaylist) {
+        if (pendingTrackId && newPlaylist?.id) {
             await window.appFunctions.addTrackToPlaylist(pendingTrackId, newPlaylist.id);
             localStorage.removeItem('pendingTrackId');
-            console.log('Auto-added pending track to new playlist');
         }
         
     } catch (error) {
-        console.error('❌ LỖI tạo playlist:', error);
+        console.error('LỖI tạo playlist:', error);
         alert('Đã xảy ra lỗi: ' + error.message);
     }
-}
+};
 window.handleCreatePlaylistSubmit = handleCreatePlaylistSubmit;
 
 function toggleShuffle() {
@@ -1179,7 +1179,6 @@ window.deleteTrack = async function(trackId) {
 };
 window.appFunctions.deleteTrack = window.deleteTrack;
 
-// ==================== RETRY LOGIC ====================
 async function supabaseQueryWithRetry(queryFn, maxRetries = 3, baseDelay = 1000) {
     let lastError;
 
@@ -1188,15 +1187,12 @@ async function supabaseQueryWithRetry(queryFn, maxRetries = 3, baseDelay = 1000)
             console.log(`Attempt ${attempt}/${maxRetries}`);
             const result = await queryFn();
 
-            // FIX: Kiểm tra cả data và error
             if (result.error) {
-                // Log full error object for debugging
                 console.error('Query returned error object:', result.error);
-                // Chỉ ném nếu không phải "không tìm thấy"
+
                 if (result.error.code !== 'PGRST116') {
                     throw result.error;
                 } else {
-                    // PGRST116 = không có bản ghi → trả về data: null
                     console.log('No rows found (PGRST116) - returning empty');
                     return { data: null, error: null };
                 }
@@ -1323,7 +1319,8 @@ window.appFunctions = {
     addTrackToPlaylist: window.appFunctions.addTrackToPlaylist,
     createNewPlaylist: window.appFunctions.createNewPlaylist,
     closeModal: window.closeModal,
-    getCurrentUserId 
+    getCurrentUserId,
+    getBaseUrl
 };
 
 window.loadPlaylistTracks = async function(playlistId, shouldPlay = false) {
@@ -1442,6 +1439,7 @@ window.appFunctions.getCurrentUserId = getCurrentUserId;
 window.displayTracks = function(tracks, container) {
     if (!container) return;
     container.innerHTML = '';
+    const defaultCover = window.getAssetUrl('assets/default-cover.webp');
   
     const containerId = container.id;
     tracks.forEach((track, index) => {
@@ -1470,7 +1468,10 @@ window.displayTracks = function(tracks, container) {
       
         trackElement.innerHTML = `
             <div class="track-index">${index + 1}.</div>
-            <img src="${track.cover_url || FALLBACK_COVER}" alt="${title} by ${artist}" class="track-cover" />
+            <img src="${track.cover_url || defaultCover}" 
+                alt="${title} by ${artist}" 
+                class="track-cover" 
+                onerror="this.src='${defaultCover}'" />
             <div class="track-info">
                 <div class="track-details">
                     <strong class="track-name marquee-container">
@@ -1930,16 +1931,18 @@ window.renderTrackItem = function(track, index, containerId) {
     item.className = 'track-item playable-track';
     item.dataset.trackId = track.id;
 
+    const defaultCover = window.getAssetUrl('assets/default-cover.webp');
+
     const safeTitle = (track.title || 'Unknown Title').trim();
     const safeArtist = (track.artist || 'Unknown Artist').trim();
-    const safeCover = track.cover_url || FALLBACK_COVER;
+    const safeCover = track.cover_url || defaultCover;
 
     // HTML cho track item
     item.innerHTML = `
         <div class="track-info">
             <span class="track-index">${index + 1}</span>
             <img src="${safeCover}" alt="${safeTitle}" class="track-cover" 
-                 onerror="this.src='${FALLBACK_COVER}'">
+                 onerror="this.src='${defaultCover}'">
             <div class="track-details">
                 <div class="track-name marquee-container">
                     <span class="track-title-inner">${safeTitle}</span>
@@ -1950,7 +1953,7 @@ window.renderTrackItem = function(track, index, containerId) {
         <div class="track-actions">
             <div class="playlist-add-container">
                 <button class="btn-action" 
-                        onclick="appFunctions.togglePlaylistDropdown(this, '${track.id}')"
+                        onclick="window.appFunctions.togglePlaylistDropdown(this, '${track.id}')"
                         title="Thêm vào playlist">
                     <i class="fas fa-plus"></i>
                 </button>
@@ -1960,14 +1963,13 @@ window.renderTrackItem = function(track, index, containerId) {
             <!-- NÚT XÓA - CHỈ HIỆN Ở UPLOADS -->
             ${containerId === 'myUploadsList' ? `
             <button class="btn-action text-danger" 
-                    onclick="event.stopPropagation(); deleteTrack('${track.id}')" 
+                    onclick="event.stopPropagation(); window.appFunctions.deleteTrack('${track.id}')" 
                     title="Xóa bài hát">
                 <i class="fas fa-trash"></i>
             </button>` : ''}
         </div>
     `;
 
-    // Click để phát nhạc (tránh click vào nút)
     item.addEventListener('click', (e) => {
         if (e.target.closest('.btn-action')) return;
         const playlist = window.currentPlaylists?.[containerId] || [];
@@ -2078,8 +2080,9 @@ window.loadHomePage = async function() {
         console.log('Starting loadHomePage...');
         homePageLoaded = true;
         
-        const base = import.meta.env.BASE_URL || '/manh-music/';
-        const homePath = base.replace(/\/+$/, '') + '/home-content.html';
+        const baseUrl = window.location.origin + '/manh-music'; 
+        const homePath = `${baseUrl}/home-content.html`.replace(/\/+/g, '/');
+
         const response = await fetch(homePath);
         if (!response.ok) throw new Error('Không thể tải home-content.html');
         const htmlContent = await response.text();
@@ -2146,18 +2149,16 @@ window.loadHomePage = async function() {
 
 
 window.handleLogout = async function() {
-
+    if (!confirm('Bạn có chắc muốn đăng xuất?')) return;
     console.log('Đăng xuất');
-
     try {
         await window.authFunctions.logout();
     } catch (error) {
         console.error('Lỗi khi đăng xuất:', error);
     }
-    alert ('Bạn muốn đăng xuất?');
     window.currentUser = null;
     resetAllCaches();
-    // window.location.href = '/index.html';
+    window.location.href = getBaseUrl() + '/index.html';
 };
 window.appFunctions.handleLogout = window.handleLogout;
 
@@ -2356,14 +2357,13 @@ window.togglePlaylistDropdown = async function(button, trackId) {
 window.appFunctions.togglePlaylistDropdown = window.togglePlaylistDropdown;
 
 window.closeDropdown = function(trackId) {
-    const container = document.querySelector(`.playlist-add-container [data-track-id="${trackId}"]`).closest('.playlist-add-container');
-    if (container) {
-        const dropdown = container.querySelector('.playlist-dropdown');
-        if (dropdown) {
-            dropdown.classList.remove('active');
-            document.body.classList.remove('dropdown-open');
-            console.log(`Closed dropdown for ${trackId}`);
-        }
+    const button = document.querySelector(`.btn-add-playlist[data-track-id="${trackId}"]`);
+    if (!button) return;
+    const container = button.closest('.playlist-add-container');
+    const dropdown = container?.querySelector('.playlist-dropdown');
+    if (dropdown) {
+        dropdown.classList.remove('active');
+        document.body.classList.remove('dropdown-open');
     }
 };
 
@@ -2407,9 +2407,15 @@ window.appFunctions.createNewPlaylist = function(trackId) {
     if (modal) modal.style.display = 'flex';
 };
 
+function getBaseUrl() {
+    return window.location.origin + '/manh-music';
+}
+window.getBaseUrl = getBaseUrl;
+
 async function loadRecentHistory() {
     const container = document.getElementById('historyTrackList');
     if (!container) return;
+    const defaultCover = window.getAssetUrl('assets/default-cover.webp');
 
     try {
         const user = window.currentUser;
@@ -2439,9 +2445,9 @@ async function loadRecentHistory() {
             <div class="track-item playable-track" onclick='event.stopPropagation(); window.playTrack(${JSON.stringify(item.tracks)}, [], -1)'>
                 <div class="track-info">
                     <span class="track-index">${index + 1}</span>
-                    <img src="${item.tracks.cover_url || FALLBACK_COVER}" 
+                    <img src="${item.tracks.cover_url || defaultCover}" 
                          alt="Cover" class="track-cover" 
-                         onerror="this.src='${FALLBACK_COVER}'">
+                         onerror="this.src='${defaultCover}'">
                     <div class="track-details">
                         <div class="track-name">${escapeHtml(item.tracks.title)}</div>
                         <div class="track-artist">${escapeHtml(item.tracks.artist)}</div>
@@ -2736,8 +2742,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
 
 function navigateTo(target) {
     if (target === 'home') {
-        const basePath = import.meta.env.BASE_URL || '/manh-music/';
-        window.location.href(basePath + 'index.html');
+        window.location.href = getBaseUrl() + '/index.html';
     } 
 }
 
@@ -2746,3 +2751,4 @@ window.currentTrackIndex = currentTrackIndex;
 window.isShuffling = isShuffling;
 window.shuffleOrder = shuffleOrder;
 window.repeatMode = repeatMode;
+window.navigateTo = navigateTo;
