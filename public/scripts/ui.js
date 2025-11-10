@@ -13,9 +13,18 @@ window.loadComponent = async function(relativePath, targetId) {
         return false;
     }
 
-    // TẠO ĐƯỜNG DẪN ĐÚNG VỚI BASE_URL
-    const base = import.meta.env.BASE_URL || '/manh-music/';
-    const url = new URL(relativePath.replace(/^\/+/, ''), window.location.origin + base).href;
+    const getBaseUrl = () => {
+        const script = document.querySelector('script[src*="ui.js"]');
+        if (script) {
+            const scriptSrc = script.src;
+            return scriptSrc.substring(0, scriptSrc.lastIndexOf('/scripts/'));
+        }
+        return window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+    };
+
+    const baseUrl = getBaseUrl();
+    const cleanPath = relativePath.replace(/^\/+/, '');
+    const url = `${window.location.origin}${baseUrl}/${cleanPath}`;
 
     try {
         console.log(`Loading: ${url} → #${targetId}`);
