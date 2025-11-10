@@ -242,6 +242,13 @@ function togglePlayPause() {
                 updateProgressBar();
             }).catch(playError => {
                 console.error('❌ Play failed:', playError);
+                if (playError && playError.name === 'NotAllowedError') {
+                    console.warn('Autoplay blocked - prompting user');
+                    window.showPlayGestureOverlay(async () => {
+                        try { await currentAudio.play(); } catch (e) { console.error('Play after gesture failed:', e); }
+                    });
+                    return;
+                }
                 if (playError.name === 'AbortError' || 
                     playError.message.includes('interrupted by a call to pause()') || 
                     recentlyPaused) {
@@ -280,6 +287,38 @@ function handleVolumeChange(e) {
         currentAudio.volume = volume;
     }
 }
+
+// Show an overlay prompting the user to interact to allow audio playback
+window.showPlayGestureOverlay = function(onActivate) {
+    try {
+        if (document.getElementById('play-gesture-overlay')) return; // already shown
+        const overlay = document.createElement('div');
+        overlay.id = 'play-gesture-overlay';
+        overlay.style.position = 'fixed';
+        overlay.style.left = '0';
+        overlay.style.top = '0';
+        overlay.style.right = '0';
+        overlay.style.bottom = '0';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.background = 'rgba(0,0,0,0.6)';
+        overlay.style.zIndex = 99999;
+        overlay.innerHTML = `<button id="play-gesture-btn" style="padding:16px 24px;font-size:18px;border-radius:8px;border:none;background:#1DB954;color:white;cursor:pointer">Click to enable audio</button>`;
+        document.body.appendChild(overlay);
+        const btn = document.getElementById('play-gesture-btn');
+        btn.addEventListener('click', async () => {
+            try {
+                if (typeof onActivate === 'function') await onActivate();
+            } catch (e) {
+                console.error('Error activating play gesture:', e);
+            }
+            overlay.remove();
+        });
+    } catch (e) {
+        console.warn('Could not show play gesture overlay:', e);
+    }
+};
 
 function handleProgressChange(e) {
     if (currentAudio && currentAudio.duration) {
@@ -358,7 +397,7 @@ function updateProgressBar() {
 }
 
 async function updateProfileDisplay(user, forceRefresh = false) { 
-    const defaultAvatarUrl = '/assets/default-avatar.png'; 
+    const defaultAvatarUrl = 'assets/default-avatar.png'; 
     const headerUserElement = document.getElementById('userName'); 
     const headerAvatarElement = document.getElementById('userAvatar');
     const profileModalAvatar = document.getElementById('currentAvatarPreview');
@@ -421,10 +460,10 @@ async function loadProfile(userId) {
 window.loadProfile = loadProfile;
 
 function getPublicAvatarUrl(avatarPath) {
-    if (!avatarPath) return '/assets/default-avatar.png';
+    if (!avatarPath) return 'assets/default-avatar.png';
     if (avatarPath.includes('supabase.co') || avatarPath.startsWith('http')) return avatarPath;
     const { data } = supabase.storage.from('avatars').getPublicUrl(avatarPath);
-    return data?.publicUrl || '/assets/default-avatar.png';
+    return data?.publicUrl || 'assets/default-avatar.png';
 }
 
 async function uploadAvatar(userId, avatarFile) {
@@ -660,7 +699,21 @@ async function playAudioWithRetry(audioElement, track, retryCount = 0) {
         
     } catch (error) {
         console.error(`❌ Play failed (attempt ${retryCount + 1}):`, error);
-        
+
+        // If autoplay is blocked by browser policy, prompt user interaction
+        if (error && error.name === 'NotAllowedError') {
+            console.warn('Autoplay blocked by browser - prompting user gesture');
+            window.showPlayGestureOverlay(async () => {
+                try {
+                    await audioElement.play();
+                } catch (e) {
+                    console.error('Play after user gesture failed:', e);
+                    alert('Không thể phát bài hát sau khi yêu cầu tương tác: ' + (e.message || e));
+                }
+            });
+            return;
+        }
+
         if (retryCount < maxRetries) {
             console.log(`🔄 Retrying play... (${retryCount + 1}/${maxRetries})`);
             setTimeout(() => playAudioWithRetry(audioElement, track, retryCount + 1), 500);
@@ -935,7 +988,7 @@ window.renderRecentHistory = async function() {
                 <div class="track-info">
                     <span class="track-index">${i + 1}</span>
                     <img src="${item.tracks.cover_url || defaultCover}" 
-                         class="track-cover" onerror="this.src='${defaultCover}'">
+                        class="track-cover" onerror="if(!this._tried){this._tried=true;this.src='${defaultCover}';}">
                     <div class="track-details">
                         <div class="track-name">${escapeHtml(item.tracks.title)}</div>
                         <div class="track-artist">${escapeHtml(item.tracks.artist)}</div>
@@ -1008,7 +1061,7 @@ window.renderRecommendations = async function() {
         <div class="track-item playable-track" onclick='event.stopPropagation(); window.playTrack(${JSON.stringify(t)}, [], -1)'>
             <div class="track-info">
                 <span class="track-index">${i + 1}</span>
-                <img src="${t.cover_url || defaultCover}" class="track-cover" onerror="this.src='${defaultCover}'">
+                <img src="${t.cover_url || defaultCover}" class="track-cover" onerror="if(!this._tried){this._tried=true;this.src='${defaultCover}';}">
                 <div class="track-details">
                     <div class="track-name">${escapeHtml(t.title)}</div>
                     <div class="track-artist">${escapeHtml(t.artist)}</div>
@@ -1471,7 +1524,7 @@ window.displayTracks = function(tracks, container) {
             <img src="${track.cover_url || defaultCover}" 
                 alt="${title} by ${artist}" 
                 class="track-cover" 
-                onerror="this.src='${defaultCover}'" />
+                onerror="if(!this._tried){this._tried=true;this.src='${defaultCover}';}" />
             <div class="track-info">
                 <div class="track-details">
                     <strong class="track-name marquee-container">
@@ -1636,7 +1689,7 @@ async function initProfileModal() {
 
     document.getElementById('editEmail').value = user.email || 'Chưa có email';
 
-    const DEFAULT_AVATAR = '/assets/default-avatar.png';
+    const DEFAULT_AVATAR = 'assets/default-avatar.png';
     let finalAvatarUrl = profile.avatar_url ? getPublicAvatarUrl(profile.avatar_url) : DEFAULT_AVATAR;
     let usernameValue = profile.username || (user.email ? user.email.split('@')[0] : 'User Name');
     let birthdayValue = profile.birthday || '';
@@ -1942,7 +1995,7 @@ window.renderTrackItem = function(track, index, containerId) {
         <div class="track-info">
             <span class="track-index">${index + 1}</span>
             <img src="${safeCover}" alt="${safeTitle}" class="track-cover" 
-                 onerror="this.src='${defaultCover}'">
+                 onerror="if(!this._tried){this._tried=true;this.src='${defaultCover}';}">
             <div class="track-details">
                 <div class="track-name marquee-container">
                     <span class="track-title-inner">${safeTitle}</span>

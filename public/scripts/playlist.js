@@ -64,7 +64,7 @@ window.loadDetailPlaylist = async function(playlistId) {
                     <div class="cover-section">
                         <label for="editCover-${playlistId}">Ảnh nền:</label>
                         <input type="file" id="editCover-${playlistId}" accept="image/*">
-                        ${playlist.cover_url ? `<img src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" style="width:60px;height:60px;object-fit:cover;margin-top:5px;border-radius:4px;">
+                        ${playlist.cover_url ? `<img src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" style="width:60px;height:60px;object-fit:cover;margin-top:5px;border-radius:4px;" onerror="if(!this._tried){this._tried=true;this.src=window.getAssetUrl('assets/default-cover.webp');}">
                             <button type="button" onclick="window.deletePlaylistCover('${playlistId}')">Xóa ảnh</button>` : ''}
                     </div>
                     <div class="edit-actions">
@@ -308,8 +308,8 @@ function renderTracks(tracks, container) {
         item.innerHTML = `
             <div class="track-info">
                 <span class="track-number">${trackNumber}.</span>
-                <img src="${safeCoverUrl}" alt="${safeTitle} by ${safeArtist}" class="track-cover" 
-                     onerror="this.src='${defaultCover}';" />
+             <img src="${safeCoverUrl}" alt="${safeTitle} by ${safeArtist}" class="track-cover" 
+                 onerror="if(!this._tried){this._tried=true;this.src='${defaultCover}';}" />
                 <div class="track-details">
                     <strong class="track-name marquee-container">
                         <span class="track-title-inner">${titleInnerHTML}</span>

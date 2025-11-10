@@ -120,10 +120,10 @@ window.updatePlayerBar = function(track) {
     rightPanel.innerHTML = `
         <div class="right-panel-content">s
             <div class="current-playlist-header">${window.currentPlaylistSource || 'Gợi ý cho bạn'}</div>
-            <img src="${track.cover_url || defaultCover}" 
-                 alt="${track.title} cover" 
-                 class="track-cover-large" 
-                 onerror="this.src='${defaultCover}'">
+          <img src="${track.cover_url || defaultCover}" 
+              alt="${track.title} cover" 
+              class="track-cover-large" 
+              onerror="if(!this._tried){this._tried=true;this.src='${defaultCover}';}">
             <div class="track-title-large">${track.title || 'Unknown Title'}</div>
             <div class="track-artist-large">${track.artist || 'Unknown Artist'}</div>
             
