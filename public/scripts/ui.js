@@ -70,7 +70,8 @@ export async function loadHomeContent() {
     }
 }
 
-const defaultCover = window.getAssetUrl('assets/default-cover.webp');
+// If the real asset is missing on the deployed site, fall back to an embedded tiny PNG to avoid 404 loops
+const defaultCover = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
 window.updatePlayerBar = function(track) {
     const cover = document.getElementById('trackCover');
     const title = document.getElementById('trackTitle');

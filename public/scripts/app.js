@@ -36,8 +36,9 @@ window.currentUser = window.currentUser || null;
 window.appFunctions = window.appFunctions || {};
 // window.appFunctions.getCurrentUserId = async () => window.currentUser?.id || null;
 
-const FALLBACK_COVER = window.getAssetUrl('assets/default-cover.webp');
-console.log('FALLBACK_COVER URL:', FALLBACK_COVER);
+// Use a small embedded PNG fallback to avoid repeated network 404s when the asset isn't present
+const FALLBACK_COVER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
+console.log('FALLBACK_COVER data-uri in use (no network request):', FALLBACK_COVER);
 
 window.currentPlaylists = window.currentPlaylists || {};
 
@@ -397,7 +398,7 @@ function updateProgressBar() {
 }
 
 async function updateProfileDisplay(user, forceRefresh = false) { 
-    const defaultAvatarUrl = 'assets/default-avatar.png'; 
+    const defaultAvatarUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII='; 
     const headerUserElement = document.getElementById('userName'); 
     const headerAvatarElement = document.getElementById('userAvatar');
     const profileModalAvatar = document.getElementById('currentAvatarPreview');
@@ -460,10 +461,10 @@ async function loadProfile(userId) {
 window.loadProfile = loadProfile;
 
 function getPublicAvatarUrl(avatarPath) {
-    if (!avatarPath) return 'assets/default-avatar.png';
+    if (!avatarPath) return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
     if (avatarPath.includes('supabase.co') || avatarPath.startsWith('http')) return avatarPath;
     const { data } = supabase.storage.from('avatars').getPublicUrl(avatarPath);
-    return data?.publicUrl || 'assets/default-avatar.png';
+    return data?.publicUrl || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
 }
 
 async function uploadAvatar(userId, avatarFile) {

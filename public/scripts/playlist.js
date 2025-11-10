@@ -64,7 +64,7 @@ window.loadDetailPlaylist = async function(playlistId) {
                     <div class="cover-section">
                         <label for="editCover-${playlistId}">Ảnh nền:</label>
                         <input type="file" id="editCover-${playlistId}" accept="image/*">
-                        ${playlist.cover_url ? `<img src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" style="width:60px;height:60px;object-fit:cover;margin-top:5px;border-radius:4px;" onerror="if(!this._tried){this._tried=true;this.src=window.getAssetUrl('assets/default-cover.webp');}">
+                            ${playlist.cover_url ? `<img src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" style="width:60px;height:60px;object-fit:cover;margin-top:5px;border-radius:4px;" onerror="if(!this._tried){this._tried=true;this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';}">
                             <button type="button" onclick="window.deletePlaylistCover('${playlistId}')">Xóa ảnh</button>` : ''}
                     </div>
                     <div class="edit-actions">
