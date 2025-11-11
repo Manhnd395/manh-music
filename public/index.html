@@ -31,6 +31,42 @@
         window.location.replace(basePath + 'player.html');
       };
 
+      const waitForSupabase = () => new Promise((resolve, reject) => {
+        if (window.supabase) {
+          resolve(window.supabase);
+          return;
+        }
+        const timeout = setTimeout(() => {
+          reject(new Error('Supabase client not available in time'));
+        }, 8000);
+        window.addEventListener('SUPABASE_CLIENT_READY', () => {
+          clearTimeout(timeout);
+          resolve(window.supabase);
+        }, { once: true });
+      });
+
+      const waitForSessionAndRedirect = async () => {
+        try {
+          const client = await waitForSupabase();
+          const maxWaitMs = 10000;
+          const pollIntervalMs = 300;
+          const start = performance.now();
+          while (!redirected && performance.now() - start < maxWaitMs) {
+            const { data: { session } } = await client.auth.getSession();
+            if (session?.user) {
+              redirectToPlayer();
+              return;
+            }
+            await new Promise(r => setTimeout(r, pollIntervalMs));
+          }
+          if (!redirected) {
+            console.warn('OAuth session not captured within expected time.');
+          }
+        } catch (err) {
+          console.error('Failed waiting for Supabase session:', err);
+        }
+      };
+
       window.addEventListener('SUPABASE_SESSION_RESTORED', (evt) => {
         const session = evt?.detail?.session;
         if (session?.user) {
@@ -60,12 +96,7 @@
         }
 
         if (hasToken) {
-          setTimeout(() => {
-            if (!redirected) {
-              console.log('OAuth callback detected, redirecting to player after Supabase session capture...');
-              redirectToPlayer();
-            }
-          }, 1200);
+          waitForSessionAndRedirect();
         }
       });
     })();

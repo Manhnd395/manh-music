@@ -27,6 +27,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 window.supabase = supabase;
+window.dispatchEvent(new Event('SUPABASE_CLIENT_READY'));
 
 const OAUTH_PARAM_KEYS = ['code','state','access_token','refresh_token','expires_at','expires_in','token_type','provider_token','type'];
 
