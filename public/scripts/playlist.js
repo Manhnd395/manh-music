@@ -431,39 +431,42 @@ export function renderPlaylists(playlists, container) {
 
     container.innerHTML = '';
 
-    playlists.forEach(playlist => {
-        const card = document.createElement('div');
-        card.className = 'playlist-card gradient-bg';
-        card.dataset.playlistId = playlist.id;
+        playlists.forEach(playlist => {
+            const card = document.createElement('div');
+            card.className = 'playlist-card spotify-style';
+            card.dataset.playlistId = playlist.id;
 
-        // ÁP DỤNG MÀU TỪ DATABASE
-        const color = playlist.color || '#1DB954';
-        card.style.setProperty('--card-primary-color', color);
-        card.style.setProperty('--card-secondary-color', '#282828');
+            // ÁP DỤNG MÀU TỪ DATABASE
+            const color = playlist.color || '#1DB954';
+            card.style.setProperty('--card-primary-color', color);
+            card.style.setProperty('--card-secondary-color', '#282828');
 
-        // Nếu có cover_url thì hiển thị ảnh nền, không có thì dùng màu
-        let coverHtml = '';
-        if (playlist.cover_url) {
-            const coverUrl = playlist.cover_url.startsWith('http') ? playlist.cover_url : getPublicPlaylistCoverUrl(playlist.cover_url);
-            coverHtml = `<div class="playlist-cover" style="background-image:url('${coverUrl}');background-size:cover;background-position:center;border-radius:8px 8px 0 0;width:100%;height:120px;"></div>`;
-        } else {
-            coverHtml = `<div class="playlist-cover" style="background:${color};height:120px;border-radius:8px 8px 0 0;"></div>`;
-        }
+            let coverHtml = '';
+            if (playlist.cover_url) {
+                const coverUrl = playlist.cover_url.startsWith('http') ? playlist.cover_url : getPublicPlaylistCoverUrl(playlist.cover_url);
+                coverHtml = `<div class="playlist-cover-img" style="background-image:url('${coverUrl}');"></div>`;
+            } else {
+                // Lấy chữ cái đầu tiên, viết hoa
+                const firstChar = playlist.name && playlist.name.trim() ? playlist.name.trim()[0].toUpperCase() : '?';
+                coverHtml = `<div class="playlist-cover-placeholder" style="background:${color};">
+                    <span class="playlist-cover-letter">${firstChar}</span>
+                </div>`;
+            }
 
-        card.innerHTML = `
-            ${coverHtml}
-            <div class="playlist-info">
-                <h3>${escapeHtml(playlist.name)}</h3>
-                <p>${playlist.track_count || 0} bài hát</p>
-            </div>
-        `;
+            card.innerHTML = `
+                ${coverHtml}
+                <div class="playlist-info">
+                    <h3>${escapeHtml(playlist.name)}</h3>
+                    <p>${playlist.track_count || 0} bài hát</p>
+                </div>
+            `;
 
-        card.addEventListener('click', () => {
-            window.switchTab('detail-playlist', playlist.id);
+            card.addEventListener('click', () => {
+                window.switchTab('detail-playlist', playlist.id);
+            });
+
+            container.appendChild(card);
         });
-
-        container.appendChild(card);
-    });
 }
 
 function escapeHtml(text) {
