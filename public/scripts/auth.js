@@ -365,10 +365,19 @@ async function loginWithGoogle() {
     console.log('Login with Google called');
     
     try {
+        // Xác định base path động cho GitHub Pages
+        const basePath = (window.location.pathname.includes('/manh-music/') || window.location.hostname.endsWith('github.io'))
+            ? '/manh-music/'
+            : '/';
+
+        // Redirect về index của project path để Supabase xử lý code/token rồi mới điều hướng tiếp
+        const redirectUrl = `${window.location.origin}${basePath}`; // e.g., https://.../manh-music/
+        console.log('Google OAuth redirectTo →', redirectUrl);
+
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/player.html` 
+                redirectTo: redirectUrl
             }
         });
 

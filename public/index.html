@@ -17,14 +17,21 @@
   <script>
     // Handle OAuth callback and redirect
     window.addEventListener('load', () => {
-      // Check if URL has OAuth callback tokens (from Supabase)
-      if (window.location.hash.includes('access_token')) {
-        console.log('OAuth callback detected, redirecting to player...');
-        // Redirect to player.html with hash parameters
-        window.location.href = '/manh-music/player.html' + window.location.hash;
+      const hash = window.location.hash;
+      const hasToken = /access_token=|refresh_token=|code=/.test(hash);
+      const basePath = '/manh-music/';
+      // Guard: nếu người dùng bị điều hướng lạc về root /player.html (không có base path) trên github.io
+      if (window.location.pathname === '/player.html' && hasToken) {
+        console.warn('Detected callback at wrong root /player.html, rewriting to base path...');
+        window.location.replace(basePath + 'player.html' + hash);
         return;
       }
-      
+      // Chuẩn: token xuất hiện ở index -> forward tới player.html trong base path
+      if (hasToken) {
+        console.log('OAuth callback detected at index, redirecting to player with hash...');
+        window.location.replace(basePath + 'player.html' + hash);
+        return;
+      }
       if (!window.authFunctions) {
         console.error('Auth functions not loaded properly');
       }

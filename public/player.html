@@ -6,10 +6,11 @@
     <title>ChatMusic - Nghe Nhạc</title>
     
     <!-- CSS -->
-    <link rel="stylesheet" href="/styles/base.css" />
-    <link rel="stylesheet" href="/styles/layout.css" />
-    <link rel="stylesheet" href="/styles/player.css" />
-    <link rel="stylesheet" href="/styles/theme.css" />
+    <!-- Use relative paths to honor Vite base when served under /manh-music/ -->
+    <link rel="stylesheet" href="./styles/base.css" />
+    <link rel="stylesheet" href="./styles/layout.css" />
+    <link rel="stylesheet" href="./styles/player.css" />
+    <link rel="stylesheet" href="./styles/theme.css" />
     <link rel="stylesheet" 
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" 
           integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" 
@@ -22,12 +23,21 @@
         window.SUPABASE_ANON_KEY = "__VITE_SUPABASE_ANON_KEY__";
         window.GROQ_API_KEY = "__VITE_GROQ_API_KEY__";
     </script>
-    <script type="module" src="/supabase/client.js"></script>
-    <script type="module" src="/scripts/auth.js"></script>
-    <script type="module" src="/scripts/ui.js"></script>
-    <script type="module" src="/scripts/app.js"></script>
-    <script type="module" src="/scripts/playlist.js"></script>
-    <script type="module" src="/scripts/upload.js"></script>
+        <script>
+            // Guard: nếu load nhầm từ root domain mà không có /manh-music/ nhưng có token, chuyển hướng đúng
+            const hash = window.location.hash;
+            const hasToken = /access_token=|refresh_token=|code=/.test(hash);
+            if (window.location.pathname === '/player.html' && hasToken) {
+                console.warn('Player loaded at root with token hash -> rewrite to /manh-music/player.html');
+                window.location.replace('/manh-music/player.html' + hash);
+            }
+        </script>
+        <script type="module" src="./supabase/client.js"></script>
+        <script type="module" src="./scripts/auth.js"></script>
+        <script type="module" src="./scripts/ui.js"></script>
+        <script type="module" src="./scripts/app.js"></script>
+        <script type="module" src="./scripts/playlist.js"></script>
+        <script type="module" src="./scripts/upload.js"></script>
 </head>
 <body class="dark-theme">
     <div class="app-wrapper">

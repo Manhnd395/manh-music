@@ -5,23 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ManhMusic - Redirect</title>
     <script>
-        // Handle OAuth callback redirect from wrong domain
-        const hash = window.location.hash;
-        const pathname = window.location.pathname;
-        const isOAuthCallback = hash.includes('access_token');
-        
-        if (isOAuthCallback) {
-            console.log('OAuth callback detected on wrong domain, redirecting...');
+        // Global 404 (repo root) handler for misdirected OAuth callbacks
+        const hash = window.location.hash || '';
+        const search = window.location.search || '';
+        const pathname = window.location.pathname || '';
+        const hasOAuthParams = /access_token=|refresh_token=|code=/.test(hash + search);
+        const base = 'https://manhnd395.github.io/manh-music/';
+
+        if (hasOAuthParams) {
+            console.log('Root 404 detected OAuth params; normalizing path...');
             if (pathname === '/player.html') {
-                // Redirect to correct player.html
-                window.location.href = 'https://manhnd395.github.io/manh-music/player.html' + hash;
+                window.location.replace(base + 'player.html' + search + hash);
             } else {
-                // Redirect to correct index
-                window.location.href = 'https://manhnd395.github.io/manh-music/' + hash;
+                window.location.replace(base + search + hash);
             }
         } else {
-            // Regular redirect
-            window.location.href = 'https://manhnd395.github.io/manh-music/';
+            window.location.replace(base);
         }
     </script>
 </head>
