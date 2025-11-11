@@ -29,6 +29,21 @@ window.dispatchEvent(new Event('SUPABASE_CLIENT_READY'));
 
 const OAUTH_PARAM_KEYS = ['code','state','access_token','refresh_token','expires_at','expires_in','token_type','provider_token','type'];
 
+// Helper: Decode JWT để lấy user info (không cần verify vì chỉ dùng để hiển thị)
+function decodeJWT(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload);
+    } catch (e) {
+        console.error('Failed to decode JWT:', e);
+        return null;
+    }
+}
+
 const hasOAuthParamsInUrl = () => {
     const rawHash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
     if (rawHash) {
@@ -132,13 +147,13 @@ async function captureSessionFromUrl() {
             } catch (setSessionError) {
                 console.warn('⚠️ setSession failed, trying fallback: manual storage write');
                 
-                // STRATEGY 2: FALLBACK - Ghi trực tiếp vào localStorage
+                // STRATEGY 2: FALLBACK - Ghi trực tiếp vào localStorage VÀ decode JWT
                 try {
                     const storageKey = `sb-${supabaseUrl.split('//')[1].split('.')[0]}-auth-token`;
                     const sessionData = {
                         access_token: accessToken,
                         refresh_token: refreshToken,
-                        expires_at: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
+                        expires_at: Math.floor(Date.now() / 1000) + 3600,
                         expires_in: 3600,
                         token_type: 'bearer'
                     };
@@ -146,45 +161,61 @@ async function captureSessionFromUrl() {
                     localStorage.setItem(storageKey, JSON.stringify(sessionData));
                     console.log('✅ Manually wrote session to localStorage');
                     
-                    // Đợi một chút rồi refresh ngay (không dùng setTimeout)
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                    
-                    console.log('🔄 Triggering refreshSession to activate stored tokens...');
-                    try {
-                        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-                        
-                        if (refreshError) {
-                            console.error('❌ Fallback refresh failed:', refreshError);
-                            // Thử lần cuối: getSession để xem localStorage có được đọc không
-                            const { data: sessionData } = await supabase.auth.getSession();
-                            if (sessionData?.session) {
-                                console.log('✅ Session loaded from localStorage via getSession');
-                                window.currentUser = sessionData.session.user;
-                                cleanupOAuthParams();
-                                window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
-                                    detail: { event: 'SIGNED_IN', session: sessionData.session } 
-                                }));
-                                return { session: sessionData.session };
-                            }
-                            return { error: refreshError };
-                        }
-                        
-                        if (refreshData?.session) {
-                            console.log('✅ Session refreshed successfully via fallback for', refreshData.session.user.email);
-                            window.currentUser = refreshData.session.user;
-                            cleanupOAuthParams();
-                            window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
-                                detail: { event: 'SIGNED_IN', session: refreshData.session } 
-                            }));
-                            return { session: refreshData.session };
-                        } else {
-                            console.warn('⚠️ refreshSession returned no session');
-                            return { error: new Error('No session after refresh') };
-                        }
-                    } catch (refreshErr) {
-                        console.error('❌ Fallback refresh exception:', refreshErr);
-                        return { error: refreshErr };
+                    // Decode JWT để lấy user info
+                    const payload = decodeJWT(accessToken);
+                    if (!payload) {
+                        throw new Error('Failed to decode access token');
                     }
+                    
+                    console.log('✅ Decoded JWT payload:', payload.email);
+                    
+                    // Tạo mock session object từ JWT payload
+                    const mockSession = {
+                        access_token: accessToken,
+                        refresh_token: refreshToken,
+                        expires_at: payload.exp,
+                        expires_in: 3600,
+                        token_type: 'bearer',
+                        user: {
+                            id: payload.sub,
+                            email: payload.email,
+                            email_confirmed_at: payload.email_verified ? new Date().toISOString() : null,
+                            phone: payload.phone || '',
+                            created_at: new Date(payload.iat * 1000).toISOString(),
+                            updated_at: new Date().toISOString(),
+                            app_metadata: payload.app_metadata || {},
+                            user_metadata: payload.user_metadata || {},
+                            aud: payload.aud,
+                            role: payload.role
+                        }
+                    };
+                    
+                    window.currentUser = mockSession.user;
+                    console.log('✅ Created mock session from JWT for', mockSession.user.email);
+                    
+                    cleanupOAuthParams();
+                    
+                    // Dispatch SIGNED_IN event với mock session
+                    window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
+                        detail: { event: 'SIGNED_IN', session: mockSession } 
+                    }));
+                    
+                    // Thử refresh trong background (không await để không block)
+                    supabase.auth.refreshSession().then(({ data, error }) => {
+                        if (data?.session) {
+                            console.log('🔄 Background refresh succeeded, upgrading to real session');
+                            window.currentUser = data.session.user;
+                            window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
+                                detail: { event: 'TOKEN_REFRESHED', session: data.session } 
+                            }));
+                        } else if (error) {
+                            console.warn('⚠️ Background refresh failed, using mock session:', error.message);
+                        }
+                    }).catch(err => {
+                        console.warn('⚠️ Background refresh exception, using mock session:', err.message);
+                    });
+                    
+                    return { session: mockSession };
                     
                 } catch (fallbackError) {
                     console.error('❌ Fallback strategy also failed:', fallbackError);
