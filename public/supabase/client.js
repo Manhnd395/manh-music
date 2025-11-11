@@ -93,9 +93,13 @@ async function captureSessionFromUrl() {
     if (!hasOAuthParams) return null;
 
     console.log('🔐 Detected OAuth params in URL - syncing Supabase session (manual flow)');
+    console.log('  → access_token:', accessToken ? `${accessToken.substring(0, 20)}...` : 'none');
+    console.log('  → refresh_token:', refreshToken ? `${refreshToken.substring(0, 20)}...` : 'none');
+    console.log('  → code:', code ? `${code.substring(0, 20)}...` : 'none');
 
     try {
         if (accessToken && refreshToken) {
+            console.log('🔄 Attempting setSession with tokens from hash...');
             const { data, error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
             if (error) {
                 console.error('❌ Failed to set session from URL fragment:', error);
@@ -106,10 +110,17 @@ async function captureSessionFromUrl() {
             localStorage.removeItem('manh-music-logout');
             localStorage.removeItem('manh-music-logout-time');
             cleanupOAuthParams();
+            
+            // Dispatch ngay sau khi set thành công
+            window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
+                detail: { event: 'SIGNED_IN', session: data.session } 
+            }));
+            
             return { session: data.session };
         }
 
         if (code) {
+            console.log('🔄 Attempting exchangeCodeForSession with code...');
             const { data, error } = await supabase.auth.exchangeCodeForSession(code);
             if (error) {
                 console.error('❌ Failed to exchange code for session:', error);
@@ -120,6 +131,12 @@ async function captureSessionFromUrl() {
             localStorage.removeItem('manh-music-logout');
             localStorage.removeItem('manh-music-logout-time');
             cleanupOAuthParams();
+            
+            // Dispatch ngay sau khi exchange thành công
+            window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
+                detail: { event: 'SIGNED_IN', session: data.session } 
+            }));
+            
             return { session: data.session };
         }
     } catch (err) {
