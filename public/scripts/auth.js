@@ -4,23 +4,31 @@ if (!supabase) {
     console.error('SUPABASE CLIENT NOT INITIALIZED! Check load order: client.js must load before auth.js');
     throw new Error('Supabase client missing');
 }
-console.log('Script loaded:', window.location.href);
+console.log('Script loaded at path:', window.location.pathname);
 
 let isLoggin = false;
 
+function getBasePath() {
+    const envBase = import.meta && import.meta.env && import.meta.env.BASE_URL;
+    if (envBase) {
+        return envBase.endsWith('/') ? envBase : envBase + '/';
+    }
+    if (window.location.pathname.includes('/manh-music/') || window.location.hostname.endsWith('github.io')) {
+        return '/manh-music/';
+    }
+    return '/';
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
     const currentPath = window.location.pathname;
+    const basePath = getBasePath();
     console.log('Auth.js checking path:', currentPath);
 
     try {
         console.log('Supabase client:', supabase);
         console.log('Supabase client keys:', Object.keys(supabase || {}));
-        const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('getSession timeout')), ms));
         console.log('Auth.js: Restoring session via getSession...');
-        const { data: { session }, error } = await Promise.race([
-            supabase.auth.getSession(),
-            timeout(10000) // tăng timeout lên 10s
-        ]);
+        const { data: { session }, error } = await supabase.auth.getSession();
         console.log('Auth.js: Session object:', session);
         if (error) throw error;
 
@@ -32,22 +40,19 @@ document.addEventListener('DOMContentLoaded', async function() {
             window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { detail: { event: 'INITIAL_SESSION', session } }));
 
             // Redirect nếu đang ở login/signup
-            if (currentPath === '/' || currentPath.endsWith('/manh-music/') || currentPath.includes('index.html') || currentPath.includes('signup.html')) {
-                const basePath = import.meta.env.BASE_URL || '/manh-music/';
+            if (currentPath === '/' || currentPath.endsWith(basePath) || currentPath.includes('index.html') || currentPath.includes('signup.html')) {
                 window.location.href = basePath + 'player.html';
                 return;
             }
         } else {
             console.warn('No session - show login form');
             if (currentPath.includes('player.html')) {
-                const basePath = import.meta.env.BASE_URL || '/manh-music/';
                 window.location.href = basePath + 'index.html';
             }
         }
     } catch (err) {
         console.error('Session restore error:', err); // BÂY GIỜ SẼ LOG
         if (currentPath.includes('player.html')) {
-            const basePath = import.meta.env.BASE_URL || '/manh-music/';
             window.location.href = basePath + 'index.html';
         }
     }
@@ -210,8 +215,8 @@ async function signup() {
             console.log('✅ Users table populated');
         }
 
-        alert('Đăng ký thành công! Vui lòng kiểm tra email để xác nhận và đăng nhập.');
-        const basePath = import.meta.env.BASE_URL || '/manh-music/';
+    alert('Đăng ký thành công! Vui lòng kiểm tra email để xác nhận và đăng nhập.');
+    const basePath = getBasePath();
         window.location.href = basePath + 'index.html';
         return;
 
@@ -226,6 +231,7 @@ async function loginWithEmail() {
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
     const loginBtn = document.querySelector('#loginForm button[type="submit"]') || document.getElementById('loginBtn');
+    const basePath = getBasePath();
 
     displayError('loginEmail', null); 
     displayError('loginPassword', null);
@@ -347,7 +353,6 @@ async function loginWithEmail() {
                 else await new Promise(r => setTimeout(r, 200));
                 tries++;
             }
-            const basePath = import.meta.env.BASE_URL || '/manh-music/';
             window.location.href = basePath + 'player.html';
         }, 300);
 
@@ -365,10 +370,7 @@ async function loginWithGoogle() {
     console.log('Login with Google called');
     
     try {
-        // Xác định base path động cho GitHub Pages
-        const basePath = (window.location.pathname.includes('/manh-music/') || window.location.hostname.endsWith('github.io'))
-            ? '/manh-music/'
-            : '/';
+        const basePath = getBasePath();
 
         // Redirect về index của project path để Supabase xử lý code/token rồi mới điều hướng tiếp
         const redirectUrl = `${window.location.origin}${basePath}`; // e.g., https://.../manh-music/
@@ -383,14 +385,6 @@ async function loginWithGoogle() {
 
         if (error) throw error;
         console.log('Google OAuth initiated:', data);
-
-        // Dispatch events sau OAuth (sẽ fire onAuthStateChange)
-        supabase.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_IN' && session?.user) {
-                window.currentUser = session.user;
-                window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { detail: { event, session } }));
-            }
-        });
 
     } catch (error) {
         console.error('Google login error:', error);
@@ -448,14 +442,13 @@ async function logout() {
 
         console.log('Logout cleanup complete');
 
-        
-        const basePath = import.meta.env.BASE_URL || '/manh-music/';
+        const basePath = getBasePath();
         window.location.replace(basePath + 'index.html');
 
     } catch (error) {
         console.error('Lỗi logout:', error);
         localStorage.setItem('manh-music-logout', 'true');
-        const basePath = import.meta.env.BASE_URL || '/manh-music/';
+        const basePath = getBasePath();
         window.location.replace(basePath + 'index.html');
     }
 }
@@ -467,7 +460,7 @@ supabase.auth.onAuthStateChange((event, session) => {
         window.currentUser = session.user;
         // Tự động redirect nếu đang ở index.html
         if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
-            const basePath = import.meta.env.BASE_URL || '/manh-music/';
+            const basePath = getBasePath();
             window.location.href = basePath + 'player.html';
         }
         // Dispatch để sync
@@ -476,7 +469,7 @@ supabase.auth.onAuthStateChange((event, session) => {
 
     if (event === 'SIGNED_OUT') {
         window.currentUser = null;
-        const basePath = import.meta.env.BASE_URL || '/manh-music/';
+        const basePath = getBasePath();
         window.location.href = basePath + 'index.html';
     }
 });

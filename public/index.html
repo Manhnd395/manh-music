@@ -15,27 +15,60 @@
   <script type="module" src="./supabase/client.js"></script>
   <script type="module" src="./scripts/auth.js"></script>
   <script>
-    // Handle OAuth callback and redirect
-    window.addEventListener('load', () => {
-      const hash = window.location.hash;
-      const hasToken = /access_token=|refresh_token=|code=/.test(hash);
-      const basePath = '/manh-music/';
-      // Guard: nếu người dùng bị điều hướng lạc về root /player.html (không có base path) trên github.io
-      if (window.location.pathname === '/player.html' && hasToken) {
-        console.warn('Detected callback at wrong root /player.html, rewriting to base path...');
-        window.location.replace(basePath + 'player.html' + hash);
-        return;
-      }
-      // Chuẩn: token xuất hiện ở index -> forward tới player.html trong base path
-      if (hasToken) {
-        console.log('OAuth callback detected at index, redirecting to player with hash...');
-        window.location.replace(basePath + 'player.html' + hash);
-        return;
-      }
-      if (!window.authFunctions) {
-        console.error('Auth functions not loaded properly');
-      }
-    });
+    (function () {
+      const OAUTH_PATTERN = /access_token=|refresh_token=|code=/;
+      const resolveBasePath = () => (
+        window.location.pathname.includes('/manh-music/') || window.location.hostname.endsWith('github.io')
+          ? '/manh-music/'
+          : '/'
+      );
+      const basePath = resolveBasePath();
+      let redirected = false;
+
+      const redirectToPlayer = () => {
+        if (redirected) return;
+        redirected = true;
+        window.location.replace(basePath + 'player.html');
+      };
+
+      window.addEventListener('SUPABASE_SESSION_RESTORED', (evt) => {
+        const session = evt?.detail?.session;
+        if (session?.user) {
+          redirectToPlayer();
+        }
+      });
+
+      window.addEventListener('SUPABASE_AUTH_CHANGE', (evt) => {
+        const detail = evt?.detail || {};
+        if (detail.event === 'SIGNED_IN' && detail.session?.user) {
+          redirectToPlayer();
+        }
+      });
+
+      window.addEventListener('load', () => {
+        if (!window.authFunctions) {
+          console.error('Auth functions not loaded properly');
+        }
+
+        const hash = window.location.hash || '';
+        const hasToken = OAUTH_PATTERN.test(hash);
+
+        if (window.location.pathname === '/player.html' && hasToken) {
+          console.warn('Detected callback at wrong root /player.html, rewriting to base path...');
+          window.location.replace(basePath + 'player.html' + hash);
+          return;
+        }
+
+        if (hasToken) {
+          setTimeout(() => {
+            if (!redirected) {
+              console.log('OAuth callback detected, redirecting to player after Supabase session capture...');
+              redirectToPlayer();
+            }
+          }, 1200);
+        }
+      });
+    })();
   </script>
 </head>
 <body class="dark-theme">  

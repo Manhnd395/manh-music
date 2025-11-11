@@ -22,14 +22,68 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     storage: sessionStorage, // mỗi tab là một phiên riêng
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true // để Supabase tự xử lý callback OAuth
   }
 });
 
 window.supabase = supabase;
 
+const OAUTH_PARAM_KEYS = ['code','state','access_token','refresh_token','expires_at','expires_in','token_type','provider_token','type'];
+
+const hasOAuthParamsInUrl = () => {
+    const rawHash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+    if (rawHash) {
+        const hashParams = new URLSearchParams(rawHash);
+        if (OAUTH_PARAM_KEYS.some(key => hashParams.has(key))) {
+            return true;
+        }
+    }
+    if (window.location.search) {
+        const searchParams = new URLSearchParams(window.location.search.startsWith('?') ? window.location.search.slice(1) : window.location.search);
+        if (OAUTH_PARAM_KEYS.some(key => searchParams.has(key))) {
+            return true;
+        }
+    }
+    return false;
+};
+
+const cleanupOAuthParams = () => {
+    if (!hasOAuthParamsInUrl()) return;
+
+    const url = new URL(window.location.href);
+    let hashChanged = false;
+    if (url.hash) {
+        const hashParams = new URLSearchParams(url.hash.slice(1));
+        OAUTH_PARAM_KEYS.forEach(key => {
+            if (hashParams.has(key)) {
+                hashParams.delete(key);
+                hashChanged = true;
+            }
+        });
+        url.hash = hashParams.toString() ? `#${hashParams.toString()}` : '';
+    }
+
+    let searchChanged = false;
+    OAUTH_PARAM_KEYS.forEach(key => {
+        if (url.searchParams.has(key)) {
+            url.searchParams.delete(key);
+            searchChanged = true;
+        }
+    });
+
+    if (hashChanged || searchChanged) {
+        const newPath = url.pathname + (url.search ? url.search : '') + (url.hash ? url.hash : '');
+        window.history.replaceState({}, document.title, newPath);
+    }
+};
+
 // ✅ Kiểm tra session (bước lấy dữ liệu)
 (async function restoreSessionAndNotify() {
+    if (hasOAuthParamsInUrl()) {
+        // Chờ Supabase xử lý callback trước khi làm sạch URL
+        setTimeout(() => cleanupOAuthParams(), 800);
+    }
+
     const logoutFlag = localStorage.getItem('manh-music-logout');
     if (logoutFlag === 'true') {
         console.log('Detected recent logout — clearing auth & skipping restore');
@@ -47,12 +101,14 @@ window.supabase = supabase;
         return;
     }
     try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
+        let session = data?.session ?? null;
         console.log('client.js getSession result:', session?.user?.email ?? null, error ?? null);
         
         if (session?.user) {
             window.currentUser = session.user;
             console.log('✅ Client session restored & dispatched:', session.user.email);
+            cleanupOAuthParams();
             
             // Force refresh session nếu cần (cho token expire hoặc stale)
             const now = Math.floor(Date.now() / 1000);
@@ -114,6 +170,9 @@ supabase.auth.onAuthStateChange((event, session) => {
     }
     console.log('client.js AUTH STATE CHANGED:', event, session?.user?.email ?? 'no user', 'at', new Date().toISOString());
     window.currentUser = session?.user ?? null;
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        cleanupOAuthParams();
+    }
     window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { detail: { event, session } }));
 });
 
