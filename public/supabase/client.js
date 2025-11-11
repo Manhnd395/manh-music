@@ -83,8 +83,9 @@ const cleanupOAuthParams = () => {
     // Nếu có OAuth params trong URL, đợi lâu hơn để Supabase kịp xử lý
     const hasOAuthTokens = hasOAuthParamsInUrl();
     if (hasOAuthTokens) {
-        console.log('🔐 OAuth params detected, waiting for Supabase to process...');
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Tăng lên 1.5s
+        console.log('🔐 OAuth params detected in URL:', window.location.hash.substring(0, 100) + '...');
+        console.log('⏳ Waiting 2s for Supabase to process tokens...');
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Tăng lên 2s
     } else {
         await new Promise(resolve => setTimeout(resolve, 300));
     }
@@ -174,7 +175,19 @@ supabase.auth.onAuthStateChange((event, session) => {
         console.log('onAuthStateChange ignored due to logout flag');
         return;
     }
-    console.log('client.js AUTH STATE CHANGED:', event, session?.user?.email ?? 'no user', 'at', new Date().toISOString());
+    console.log('🔔 client.js AUTH STATE CHANGED:', event, session?.user?.email ?? 'no user', 'at', new Date().toISOString());
+    
+    // Log chi tiết để debug
+    if (event === 'SIGNED_IN') {
+        console.log('📊 Session details:', {
+            hasSession: !!session,
+            hasUser: !!session?.user,
+            userId: session?.user?.id,
+            email: session?.user?.email,
+            provider: session?.user?.app_metadata?.provider
+        });
+    }
+    
     window.currentUser = session?.user ?? null;
     if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         cleanupOAuthParams();
