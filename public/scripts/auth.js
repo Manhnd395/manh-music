@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     try {
         console.log('Auth.js: Restoring session via getSession...');
         const { data: { session }, error } = await supabase.auth.getSession();
-
+        console.log('Auth.js: Session object:', session);
         if (error) throw error;
 
         if (session?.user) {
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { detail: { event: 'INITIAL_SESSION', session } }));
 
             // Redirect nếu đang ở login/signup
-            if (currentPath === '/' || currentPath.includes('index.html') || currentPath.includes('signup.html')) {
+            if (currentPath === '/' || currentPath.endsWith('/manh-music/') || currentPath.includes('index.html') || currentPath.includes('signup.html')) {
                 const basePath = import.meta.env.BASE_URL || '/manh-music/';
                 window.location.href = basePath + 'player.html';
                 return;
@@ -327,10 +327,19 @@ async function loginWithEmail() {
             else console.log('Upsert timeout - continue');
         }
 
-        setTimeout(() => {
+        setTimeout(async () => {
             if (loginBtn) {
                 loginBtn.disabled = false;
                 loginBtn.textContent = 'Đăng nhập';
+            }
+            // Đảm bảo session đã lưu trước khi redirect
+            let tries = 0;
+            let sessionReady = false;
+            while (tries < 5 && !sessionReady) {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session && session.user) sessionReady = true;
+                else await new Promise(r => setTimeout(r, 200));
+                tries++;
             }
             const basePath = import.meta.env.BASE_URL || '/manh-music/';
             window.location.href = basePath + 'player.html';
