@@ -267,7 +267,7 @@ window.deletePlaylistCover = async function(playlistId) {
     }
 };
 
-const defaultCover = window.getAssetUrl('assets/default-cover.webp');
+const defaultCover = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
 /**
  * Render danh sách bài hát (Được dùng chung cho Playlist, Uploads, Search, Recommend)
  * @param {Array<Object>} tracks - Danh sách các đối tượng track

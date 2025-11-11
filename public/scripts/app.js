@@ -244,10 +244,10 @@ function togglePlayPause() {
             }).catch(playError => {
                 console.error('❌ Play failed:', playError);
                 if (playError && playError.name === 'NotAllowedError') {
-                    console.warn('Autoplay blocked - prompting user');
-                    window.showPlayGestureOverlay(async () => {
-                        try { await currentAudio.play(); } catch (e) { console.error('Play after gesture failed:', e); }
-                    });
+                    // Autoplay blocked by browser policy. Previously we showed a click-to-enable overlay.
+                    // Remove overlay flow: just log and abort the automatic play attempt. A user can still
+                    // manually press play (keyboard or UI) to start playback.
+                    console.warn('Autoplay blocked by browser policy; automatic play aborted.');
                     return;
                 }
                 if (playError.name === 'AbortError' || 
@@ -290,35 +290,9 @@ function handleVolumeChange(e) {
 }
 
 // Show an overlay prompting the user to interact to allow audio playback
+// Overlay disabled: replace with a no-op to keep any remaining callers safe.
 window.showPlayGestureOverlay = function(onActivate) {
-    try {
-        if (document.getElementById('play-gesture-overlay')) return; // already shown
-        const overlay = document.createElement('div');
-        overlay.id = 'play-gesture-overlay';
-        overlay.style.position = 'fixed';
-        overlay.style.left = '0';
-        overlay.style.top = '0';
-        overlay.style.right = '0';
-        overlay.style.bottom = '0';
-        overlay.style.display = 'flex';
-        overlay.style.alignItems = 'center';
-        overlay.style.justifyContent = 'center';
-        overlay.style.background = 'rgba(0,0,0,0.6)';
-        overlay.style.zIndex = 99999;
-        overlay.innerHTML = `<button id="play-gesture-btn" style="padding:16px 24px;font-size:18px;border-radius:8px;border:none;background:#1DB954;color:white;cursor:pointer">Click to enable audio</button>`;
-        document.body.appendChild(overlay);
-        const btn = document.getElementById('play-gesture-btn');
-        btn.addEventListener('click', async () => {
-            try {
-                if (typeof onActivate === 'function') await onActivate();
-            } catch (e) {
-                console.error('Error activating play gesture:', e);
-            }
-            overlay.remove();
-        });
-    } catch (e) {
-        console.warn('Could not show play gesture overlay:', e);
-    }
+    console.debug('showPlayGestureOverlay called but is disabled in this build.');
 };
 
 function handleProgressChange(e) {
@@ -961,7 +935,7 @@ window.renderRecentHistory = async function() {
         return;
     }
 
-    const defaultCover = window.getAssetUrl('assets/default-cover.webp'); // ← DÙNG TRỰC TIẾP
+    const defaultCover = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
 
     try {
         const { data: history, error } = await supabase
@@ -1051,7 +1025,7 @@ window.renderRecommendations = async function() {
 
     container.innerHTML = '<p>Đang tải gợi ý...</p>';
     const topTracks = await window.loadTopTracks(10);
-    const defaultCover = window.getAssetUrl('assets/default-cover.webp');
+    const defaultCover = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
 
     if (topTracks.length === 0) {
         container.innerHTML = '<p class="empty-message">Chưa có gợi ý.</p>';
@@ -1493,7 +1467,7 @@ window.appFunctions.getCurrentUserId = getCurrentUserId;
 window.displayTracks = function(tracks, container) {
     if (!container) return;
     container.innerHTML = '';
-    const defaultCover = window.getAssetUrl('assets/default-cover.webp');
+    const defaultCover = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
   
     const containerId = container.id;
     tracks.forEach((track, index) => {
@@ -1525,7 +1499,7 @@ window.displayTracks = function(tracks, container) {
             <img src="${track.cover_url || defaultCover}" 
                 alt="${title} by ${artist}" 
                 class="track-cover" 
-                onerror="if(!this._tried){this._tried=true;this.src='${defaultCover}';}" />
+                onerror="if(!this._tried){this._tried=true;this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';}" />
             <div class="track-info">
                 <div class="track-details">
                     <strong class="track-name marquee-container">
@@ -1690,7 +1664,7 @@ async function initProfileModal() {
 
     document.getElementById('editEmail').value = user.email || 'Chưa có email';
 
-    const DEFAULT_AVATAR = 'assets/default-avatar.png';
+    const DEFAULT_AVATAR = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
     let finalAvatarUrl = profile.avatar_url ? getPublicAvatarUrl(profile.avatar_url) : DEFAULT_AVATAR;
     let usernameValue = profile.username || (user.email ? user.email.split('@')[0] : 'User Name');
     let birthdayValue = profile.birthday || '';
@@ -1985,7 +1959,7 @@ window.renderTrackItem = function(track, index, containerId) {
     item.className = 'track-item playable-track';
     item.dataset.trackId = track.id;
 
-    const defaultCover = window.getAssetUrl('assets/default-cover.webp');
+    const defaultCover = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
 
     const safeTitle = (track.title || 'Unknown Title').trim();
     const safeArtist = (track.artist || 'Unknown Artist').trim();
@@ -1996,7 +1970,8 @@ window.renderTrackItem = function(track, index, containerId) {
         <div class="track-info">
             <span class="track-index">${index + 1}</span>
             <img src="${safeCover}" alt="${safeTitle}" class="track-cover" 
-                 onerror="if(!this._tried){this._tried=true;this.src='${defaultCover}';}">
+                 onerror="if(!this._tried){this._tried=true;this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';}">
+            <div class="track-details">>
             <div class="track-details">
                 <div class="track-name marquee-container">
                     <span class="track-title-inner">${safeTitle}</span>
@@ -2450,7 +2425,7 @@ window.getBaseUrl = getBaseUrl;
 async function loadRecentHistory() {
     const container = document.getElementById('historyTrackList');
     if (!container) return;
-    const defaultCover = window.getAssetUrl('assets/default-cover.webp');
+    const defaultCover = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
 
     try {
         const user = window.currentUser;
