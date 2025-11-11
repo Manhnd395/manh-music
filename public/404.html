@@ -5,10 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ManhMusic</title>
     <script>
-        // Redirect any 404 to index.html with the original path
-        const path = window.location.pathname;
+        // Check if this is OAuth callback on wrong path
         const hash = window.location.hash;
-        window.location.href = '/manh-music/' + hash;
+        const isOAuthCallback = hash.includes('access_token');
+        
+        if (isOAuthCallback) {
+            // OAuth callback but wrong path, redirect to correct domain
+            window.location.href = 'https://manhnd395.github.io/manh-music/' + hash;
+        } else {
+            // Regular 404, redirect to home
+            window.location.href = 'https://manhnd395.github.io/manh-music/';
+        }
     </script>
 </head>
 <body>
