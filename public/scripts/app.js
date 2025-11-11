@@ -486,14 +486,12 @@ function formatTime(seconds) {
 
 window.playTrack = async function (track, playlist = currentPlaylist, index = -1) {
     console.log('🎵 Attempting to play track:', track);
-    
     if (!track || !track.file_url) {
         console.error('❌ Lỗi: Thông tin track không hợp lệ hoặc thiếu file_url.');
         console.log('Track data:', track);
         alert('Không thể phát bài hát: File không tồn tại');
         return;
     }
-
     // DEBUG: Log thông tin track
     console.log('📋 Track details:', {
         title: track.title,
@@ -501,11 +499,16 @@ window.playTrack = async function (track, playlist = currentPlaylist, index = -1
         file_url: track.file_url,
         has_file_url: !!track.file_url
     });
-
     // FIX: Pause & clear old audio
     if (currentAudio) {
         console.log('⏸️ Stopping previous audio');
-        currentAudio.pause();
+        try {
+            currentAudio.pause();
+            currentAudio.src = '';
+            currentAudio.removeAttribute && currentAudio.removeAttribute('src');
+        } catch (e) {
+            console.warn('Error while cleaning up previous audio:', e);
+        }
         currentAudio = null;
     }
 
@@ -962,8 +965,9 @@ window.renderRecentHistory = async function() {
             <div class="track-item playable-track" onclick='event.stopPropagation(); window.playTrack(${JSON.stringify(item.tracks)}, [], -1)'>
                 <div class="track-info">
                     <span class="track-index">${i + 1}</span>
-                    <img src="${item.tracks.cover_url || defaultCover}" 
-                        class="track-cover" onerror="if(!this._tried){this._tried=true;this.src='${defaultCover}';}">
+                    <img src="${item.tracks.cover_url && item.tracks.cover_url.trim() ? item.tracks.cover_url : defaultCover}" 
+                         alt="Cover" class="track-cover" 
+                         onerror="this.src='${defaultCover}'">
                     <div class="track-details">
                         <div class="track-name">${escapeHtml(item.tracks.title)}</div>
                         <div class="track-artist">${escapeHtml(item.tracks.artist)}</div>
@@ -1036,7 +1040,7 @@ window.renderRecommendations = async function() {
         <div class="track-item playable-track" onclick='event.stopPropagation(); window.playTrack(${JSON.stringify(t)}, [], -1)'>
             <div class="track-info">
                 <span class="track-index">${i + 1}</span>
-                <img src="${t.cover_url || defaultCover}" class="track-cover" onerror="if(!this._tried){this._tried=true;this.src='${defaultCover}';}">
+                <img src="${t.cover_url && t.cover_url.trim() ? t.cover_url : defaultCover}" class="track-cover" onerror="if(!this._tried){this._tried=true;this.src='${defaultCover}';}">
                 <div class="track-details">
                     <div class="track-name">${escapeHtml(t.title)}</div>
                     <div class="track-artist">${escapeHtml(t.artist)}</div>
@@ -1496,7 +1500,7 @@ window.displayTracks = function(tracks, container) {
       
         trackElement.innerHTML = `
             <div class="track-index">${index + 1}.</div>
-            <img src="${track.cover_url || defaultCover}" 
+            <img src="${track.cover_url && track.cover_url.trim() ? track.cover_url : defaultCover}" 
                 alt="${title} by ${artist}" 
                 class="track-cover" 
                 onerror="if(!this._tried){this._tried=true;this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';}" />
@@ -1963,14 +1967,14 @@ window.renderTrackItem = function(track, index, containerId) {
 
     const safeTitle = (track.title || 'Unknown Title').trim();
     const safeArtist = (track.artist || 'Unknown Artist').trim();
-    const safeCover = track.cover_url || defaultCover;
+    const safeCover = track.cover_url && track.cover_url.trim() ? track.cover_url : defaultCover;
 
     // HTML cho track item
     item.innerHTML = `
         <div class="track-info">
             <span class="track-index">${index + 1}</span>
             <img src="${safeCover}" alt="${safeTitle}" class="track-cover" 
-                 onerror="if(!this._tried){this._tried=true;this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';}">
+                 onerror="if(!this._tried){this._tried=true;this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';}" />
             <div class="track-details">>
             <div class="track-details">
                 <div class="track-name marquee-container">
@@ -2455,7 +2459,7 @@ async function loadRecentHistory() {
             <div class="track-item playable-track" onclick='event.stopPropagation(); window.playTrack(${JSON.stringify(item.tracks)}, [], -1)'>
                 <div class="track-info">
                     <span class="track-index">${index + 1}</span>
-                    <img src="${item.tracks.cover_url || defaultCover}" 
+                    <img src="${item.tracks.cover_url && item.tracks.cover_url.trim() ? item.tracks.cover_url : defaultCover}" 
                          alt="Cover" class="track-cover" 
                          onerror="this.src='${defaultCover}'">
                     <div class="track-details">
@@ -2698,13 +2702,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             console.warn('⚠️ No active session found — redirecting to login');
             const basePath = import.meta.env.BASE_URL || '/manh-music/';
-            window.location.href(basePath + 'index.html');
+            window.location.href = basePath + 'index.html';
             return;
         }
     } catch (err) {
         console.error('❌ Error checking existing session:', err);
         const basePath = import.meta.env.BASE_URL || '/manh-music/';
-        window.location.href(basePath + 'index.html');
+        window.location.href = basePath + 'index.html';
         return;
     }
 });
@@ -2736,7 +2740,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
 
         if (!window.location.pathname.includes('index.html')) {
             const basePath = import.meta.env.BASE_URL || '/manh-music/';
-            window.location.href(basePath + 'index.html');
+            window.location.href = basePath + 'index.html';
         }
     }
 });
