@@ -100,7 +100,18 @@ async function captureSessionFromUrl() {
     try {
         if (accessToken && refreshToken) {
             console.log('🔄 Attempting setSession with tokens from hash...');
-            const { data, error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+            const setSessionPromise = supabase.auth.setSession({ 
+                access_token: accessToken, 
+                refresh_token: refreshToken 
+            });
+            
+            // Timeout để tránh treo vô hạn
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('setSession timeout after 5s')), 5000)
+            );
+            
+            const { data, error } = await Promise.race([setSessionPromise, timeoutPromise]);
+            
             if (error) {
                 console.error('❌ Failed to set session from URL fragment:', error);
                 return { error };
@@ -121,7 +132,13 @@ async function captureSessionFromUrl() {
 
         if (code) {
             console.log('🔄 Attempting exchangeCodeForSession with code...');
-            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            const exchangePromise = supabase.auth.exchangeCodeForSession(code);
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('exchangeCode timeout after 5s')), 5000)
+            );
+            
+            const { data, error } = await Promise.race([exchangePromise, timeoutPromise]);
+            
             if (error) {
                 console.error('❌ Failed to exchange code for session:', error);
                 return { error };
@@ -149,7 +166,8 @@ async function captureSessionFromUrl() {
 
 // ✅ Kiểm tra session (bước lấy dữ liệu)
 (async function restoreSessionAndNotify() {
-    await captureSessionFromUrl();
+    const captureResult = await captureSessionFromUrl();
+    console.log('📊 captureSessionFromUrl result:', captureResult);
 
     const logoutFlag = localStorage.getItem('manh-music-logout');
     if (logoutFlag === 'true') {
@@ -167,6 +185,14 @@ async function captureSessionFromUrl() {
         window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { detail: { session: null } }));
         return;
     }
+    
+    // Nếu vừa capture session thành công, dùng session đó luôn
+    if (captureResult?.session) {
+        console.log('✅ Using freshly captured session:', captureResult.session.user.email);
+        window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { detail: { session: captureResult.session } }));
+        return;
+    }
+    
     try {
         const { data, error } = await supabase.auth.getSession();
         let session = data?.session ?? null;
