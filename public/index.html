@@ -52,8 +52,17 @@
           const pollIntervalMs = 300;
           const start = performance.now();
           while (!redirected && performance.now() - start < maxWaitMs) {
-            const { data: { session } } = await client.auth.getSession();
-            if (session?.user) {
+            let sessionResult = null;
+            try {
+              const { data: { session } } = await Promise.race([
+                client.auth.getSession(),
+                new Promise((resolve) => setTimeout(() => resolve({ data: { session: null } }), 1200))
+              ]);
+              sessionResult = session;
+            } catch (innerErr) {
+              console.warn('getSession polling error:', innerErr);
+            }
+            if (sessionResult?.user) {
               redirectToPlayer();
               return;
             }

@@ -18,12 +18,12 @@ if (window.location.hostname === 'localhost') {
 
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    storage: sessionStorage, // mỗi tab là một phiên riêng
-    autoRefreshToken: true,
-    detectSessionInUrl: true // để Supabase tự xử lý callback OAuth
-  }
+    auth: {
+        persistSession: true,
+        storage: sessionStorage, // mỗi tab là một phiên riêng
+        autoRefreshToken: true,
+        detectSessionInUrl: false // tự xử lý callback để chủ động thời điểm xoá token
+    }
 });
 
 window.supabase = supabase;
@@ -78,12 +78,61 @@ const cleanupOAuthParams = () => {
     }
 };
 
+async function captureSessionFromUrl() {
+    // Hợp nhất hash và query để hỗ trợ cả implicit flow lẫn PKCE
+    const rawHash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+    const rawSearch = window.location.search.startsWith('?') ? window.location.search.slice(1) : window.location.search;
+    const hashParams = new URLSearchParams(rawHash);
+    const searchParams = new URLSearchParams(rawSearch);
+
+    const accessToken = hashParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token');
+    const code = hashParams.get('code') || searchParams.get('code');
+
+    const hasOAuthParams = accessToken || refreshToken || code;
+    if (!hasOAuthParams) return null;
+
+    console.log('🔐 Detected OAuth params in URL - syncing Supabase session (manual flow)');
+
+    try {
+        if (accessToken && refreshToken) {
+            const { data, error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+            if (error) {
+                console.error('❌ Failed to set session from URL fragment:', error);
+                return { error };
+            }
+            console.log('✅ Session stored from URL fragment for', data.session?.user?.email ?? 'unknown user');
+            window.currentUser = data.session?.user ?? null;
+            localStorage.removeItem('manh-music-logout');
+            localStorage.removeItem('manh-music-logout-time');
+            cleanupOAuthParams();
+            return { session: data.session };
+        }
+
+        if (code) {
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            if (error) {
+                console.error('❌ Failed to exchange code for session:', error);
+                return { error };
+            }
+            console.log('✅ Session exchanged from authorization code for', data.session?.user?.email ?? 'unknown user');
+            window.currentUser = data.session?.user ?? null;
+            localStorage.removeItem('manh-music-logout');
+            localStorage.removeItem('manh-music-logout-time');
+            cleanupOAuthParams();
+            return { session: data.session };
+        }
+    } catch (err) {
+        console.error('❌ Unexpected error while capturing OAuth session:', err);
+        return { error: err };
+    }
+
+    return null;
+}
+
 // ✅ Kiểm tra session (bước lấy dữ liệu)
 (async function restoreSessionAndNotify() {
-    if (hasOAuthParamsInUrl()) {
-        // Chờ Supabase xử lý callback trước khi làm sạch URL
-        setTimeout(() => cleanupOAuthParams(), 800);
-    }
+    await captureSessionFromUrl();
 
     const logoutFlag = localStorage.getItem('manh-music-logout');
     if (logoutFlag === 'true') {
