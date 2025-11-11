@@ -18,7 +18,12 @@ if (window.location.hostname === 'localhost') {
 
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: { persistSession: true },
+  auth: {
+    persistSession: true,
+    storage: sessionStorage, // mỗi tab là một phiên riêng
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
 });
 
 window.supabase = supabase;
