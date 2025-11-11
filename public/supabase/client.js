@@ -22,8 +22,8 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     storage: localStorage,
     autoRefreshToken: true,
-    detectSessionInUrl: true, // Để Supabase tự xử lý OAuth callback
-    flowType: 'implicit' // Explicit về flow type
+    detectSessionInUrl: false, // Tắt vì không hoạt động, tự xử lý thủ công
+    flowType: 'implicit'
   }
 });window.supabase = supabase;
 window.dispatchEvent(new Event('SUPABASE_CLIENT_READY'));
@@ -78,17 +78,89 @@ const cleanupOAuthParams = () => {
     }
 };
 
+// Manual capture vì detectSessionInUrl không hoạt động
+async function manualCaptureSession() {
+    const rawHash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+    const hashParams = new URLSearchParams(rawHash);
+    
+    const accessToken = hashParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token');
+    
+    if (!accessToken || !refreshToken) return null;
+    
+    console.log('🔧 Manual session capture starting...');
+    console.log('  → access_token length:', accessToken.length);
+    console.log('  → refresh_token length:', refreshToken.length);
+    
+    try {
+        // Gọi trực tiếp API endpoint thay vì dùng SDK
+        const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'apikey': supabaseAnonKey
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+        }
+        
+        const user = await response.json();
+        console.log('✅ User fetched from API:', user.email);
+        
+        // Lưu vào localStorage theo format Supabase
+        const storageKey = `sb-${supabaseUrl.split('//')[1].split('.')[0]}-auth-token`;
+        const sessionData = {
+            access_token: accessToken,
+            refresh_token: refreshToken,
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+            expires_in: 3600,
+            token_type: 'bearer',
+            user: user
+        };
+        
+        localStorage.setItem(storageKey, JSON.stringify(sessionData));
+        localStorage.removeItem('manh-music-logout');
+        localStorage.removeItem('manh-music-logout-time');
+        console.log('✅ Session saved to localStorage');
+        
+        window.currentUser = user;
+        cleanupOAuthParams();
+        
+        // Fire event
+        window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
+            detail: { event: 'SIGNED_IN', session: sessionData } 
+        }));
+        
+        return sessionData;
+        
+    } catch (error) {
+        console.error('❌ Manual capture failed:', error);
+        return null;
+    }
+}
+
 // ✅ Kiểm tra session (bước lấy dữ liệu)
 (async function restoreSessionAndNotify() {
-    // Nếu có OAuth params trong URL, đợi lâu hơn để Supabase kịp xử lý
+    // Nếu có OAuth params trong URL, xử lý thủ công
     const hasOAuthTokens = hasOAuthParamsInUrl();
     if (hasOAuthTokens) {
         console.log('🔐 OAuth params detected in URL:', window.location.hash.substring(0, 100) + '...');
-        console.log('⏳ Waiting 2s for Supabase to process tokens...');
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Tăng lên 2s
-    } else {
-        await new Promise(resolve => setTimeout(resolve, 300));
+        const capturedSession = await manualCaptureSession();
+        
+        if (capturedSession) {
+            console.log('✅ Manual capture succeeded, dispatching event');
+            window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { 
+                detail: { session: capturedSession } 
+            }));
+            return;
+        } else {
+            console.error('❌ Manual capture failed');
+        }
     }
+    
+    await new Promise(resolve => setTimeout(resolve, 300));
     
     const logoutFlag = localStorage.getItem('manh-music-logout');
     if (logoutFlag === 'true') {
