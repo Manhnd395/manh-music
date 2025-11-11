@@ -23,6 +23,16 @@ document.addEventListener('DOMContentLoaded', async function() {
     const currentPath = window.location.pathname;
     const basePath = getBasePath();
     console.log('Auth.js checking path:', currentPath);
+    
+    // Nếu có OAuth tokens trong URL, đợi event từ client.js thay vì gọi getSession ngay
+    const hasOAuthTokens = /access_token=|refresh_token=|code=/.test(window.location.hash + window.location.search);
+    
+    if (hasOAuthTokens) {
+        console.log('⏳ OAuth callback detected, waiting for SUPABASE_SESSION_RESTORED event...');
+        // Không gọi getSession, chỉ đợi event
+        // Event sẽ được fire từ client.js sau khi Supabase xử lý xong
+        return;
+    }
 
     try {
         console.log('Supabase client:', supabase);

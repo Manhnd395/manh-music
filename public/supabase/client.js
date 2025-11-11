@@ -80,8 +80,14 @@ const cleanupOAuthParams = () => {
 
 // ✅ Kiểm tra session (bước lấy dữ liệu)
 (async function restoreSessionAndNotify() {
-    // Đợi Supabase xử lý OAuth callback tự động (nếu có)
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Nếu có OAuth params trong URL, đợi lâu hơn để Supabase kịp xử lý
+    const hasOAuthTokens = hasOAuthParamsInUrl();
+    if (hasOAuthTokens) {
+        console.log('🔐 OAuth params detected, waiting for Supabase to process...');
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Tăng lên 1.5s
+    } else {
+        await new Promise(resolve => setTimeout(resolve, 300));
+    }
     
     const logoutFlag = localStorage.getItem('manh-music-logout');
     if (logoutFlag === 'true') {
