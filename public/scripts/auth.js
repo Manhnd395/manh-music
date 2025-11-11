@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.log('Auth.js: Restoring session via getSession...');
         const { data: { session }, error } = await Promise.race([
             supabase.auth.getSession(),
-            timeout(3000)
+            timeout(10000) // tăng timeout lên 10s
         ]);
         console.log('Auth.js: Session object:', session);
         if (error) throw error;
