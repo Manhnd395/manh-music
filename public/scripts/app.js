@@ -1365,7 +1365,7 @@ window.loadPlaylistTracks = async function(playlistId, shouldPlay = false) {
         return cachedPlaylistTracks[playlistId];
     }
     try {
-        // BƯỚC 1: Fetch track_ids và added_at từ playlist_tracks (không nested)
+        // BƯỚC 1: Fetch track_ids và added_at từ playlist_tracks (chỉ lấy trường cần thiết)
         const { data: playlistItems, error: fetchItemsError } = await supabase
             .from('playlist_tracks')
             .select('track_id, added_at')
@@ -1389,10 +1389,10 @@ window.loadPlaylistTracks = async function(playlistId, shouldPlay = false) {
         // BƯỚC 2: Extract track_ids array
         const trackIds = playlistItems.map(item => item.track_id);
 
-        // BƯỚC 3: Fetch tracks details bằng IN clause (an toàn, không ambiguous)
+        // BƯỚC 3: Fetch tracks details bằng IN clause (chỉ lấy trường cần thiết)
         const { data: tracks, error: fetchTracksError } = await supabase
             .from('tracks')
-            .select('id, title, artist, file_url, cover_url, user_id')
+            .select('id, title, artist, file_url, cover_url, user_id, duration')
             .in('id', trackIds);
 
         if (fetchTracksError) {
@@ -1835,7 +1835,7 @@ async function loadAndOpenProfileModal() {
 
     if (container.innerHTML === loadingState) {
         try {
-            const response = await fetch('/profile.html');
+            const response = await fetch('profile.html');
             if (!response.ok) throw new Error('Không thể tải profile.html');
             
             container.innerHTML = await response.text();

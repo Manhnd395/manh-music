@@ -29,7 +29,7 @@ window.loadDetailPlaylist = async function(playlistId) {
         // 1. Lấy thông tin playlist
         const { data: playlist, error } = await supabase
             .from('playlists')
-            .select('*')
+            .select('id, name, description, color, cover_url, created_at, user_id')
             .eq('id', playlistId)
             .single();
 
@@ -55,17 +55,22 @@ window.loadDetailPlaylist = async function(playlistId) {
                     </button>
                 </div>
                 <form id="editPlaylistForm-${playlistId}" class="edit-form" style="display:none;">
+                    <label for="editName-${playlistId}">Tên playlist:</label>
                     <input type="text" id="editName-${playlistId}" value="${escapeHtml(playlist.name)}" required>
-                    <input type="text" id="editDesc-${playlistId}" value="${escapeHtml(playlist.description || '')}">
-                    <div style="display:flex;gap:10px;align-items:center;">
+                    <label for="editDesc-${playlistId}">Mô tả:</label>
+                    <textarea id="editDesc-${playlistId}" rows="2">${escapeHtml(playlist.description || '')}</textarea>
+                    <div style="display:flex;gap:10px;align-items:center;margin:8px 0;">
                         <label>Màu:</label>
                         <input type="color" id="editColor-${playlistId}" value="${playlist.color || '#1db954'}">
                     </div>
-                    <div class="cover-section">
+                    <div class="cover-section" style="margin-bottom:10px;">
                         <label for="editCover-${playlistId}">Ảnh nền:</label>
                         <input type="file" id="editCover-${playlistId}" accept="image/*">
-                            ${playlist.cover_url ? `<img src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" style="width:60px;height:60px;object-fit:cover;margin-top:5px;border-radius:4px;" onerror="if(!this._tried){this._tried=true;this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';}">
-                            <button type="button" onclick="window.deletePlaylistCover('${playlistId}')">Xóa ảnh</button>` : ''}
+                        ${playlist.cover_url ? `<img src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" style="width:60px;height:60px;object-fit:cover;margin-top:5px;border-radius:4px;" onerror="if(!this._tried){this._tried=true;this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';}"><button type="button" onclick="window.deletePlaylistCover('${playlistId}')">Xóa ảnh</button>` : ''}
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <label>Thứ tự bài hát (kéo thả để sắp xếp):</label>
+                        <ul id="sortableTracks-${playlistId}" class="sortable-track-list" style="list-style:none;padding:0;margin:0;"></ul>
                     </div>
                     <div class="edit-actions">
                         <button type="button" class="btn-save" onclick="window.savePlaylistEdit('${playlistId}')">Lưu</button>
@@ -181,6 +186,48 @@ window.toggleEditPlaylist = function(playlistId, currentName, currentDesc, curre
             `;
             form.appendChild(coverSection);
         }
+
+        // Thêm drag & drop cho danh sách bài hát
+        const sortableList = form.querySelector(`#sortableTracks-${playlistId}`);
+        if (sortableList) {
+            // Lấy lại danh sách track hiện tại
+            const tracks = window.currentPlaylist || [];
+            sortableList.innerHTML = '';
+            tracks.forEach((track, idx) => {
+                const li = document.createElement('li');
+                li.className = 'sortable-track-item';
+                li.draggable = true;
+                li.dataset.trackId = track.id;
+                li.style.padding = '6px 10px';
+                li.style.border = '1px solid #333';
+                li.style.marginBottom = '4px';
+                li.style.background = '#181818';
+                li.innerHTML = `<span style='cursor:move;margin-right:8px;'>☰</span> ${escapeHtml(track.title)} <small style='color:#aaa;'>${escapeHtml(track.artist)}</small>`;
+                sortableList.appendChild(li);
+            });
+
+            // Drag & drop logic
+            let dragSrcEl = null;
+            sortableList.addEventListener('dragstart', function(e) {
+                dragSrcEl = e.target;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', dragSrcEl.outerHTML);
+                dragSrcEl.classList.add('dragElem');
+            });
+            sortableList.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                const target = e.target.closest('li');
+                if (target && target !== dragSrcEl) {
+                    sortableList.insertBefore(dragSrcEl, target.nextSibling);
+                }
+            });
+            sortableList.addEventListener('drop', function(e) {
+                e.stopPropagation();
+                dragSrcEl.classList.remove('dragElem');
+                dragSrcEl = null;
+            });
+        }
     }
 };
 
@@ -219,6 +266,14 @@ window.savePlaylistEdit = async function(playlistId) {
         finalCoverUrl = null;
     }
 
+
+    // Lấy lại thứ tự track mới từ UI
+    const sortableList = document.getElementById(`sortableTracks-${playlistId}`);
+    let newOrder = [];
+    if (sortableList) {
+        newOrder = Array.from(sortableList.children).map(li => li.dataset.trackId);
+    }
+
     const updates = {
         name,
         description: desc,
@@ -227,6 +282,7 @@ window.savePlaylistEdit = async function(playlistId) {
     };
 
     try {
+        // Cập nhật playlist info
         const { error } = await supabase
             .from('playlists')
             .update(updates)
@@ -234,6 +290,19 @@ window.savePlaylistEdit = async function(playlistId) {
             .select();
 
         if (error) throw error;
+
+        // Nếu có thay đổi thứ tự bài hát, cập nhật lại trường added_at cho playlist_tracks
+        if (newOrder.length > 0) {
+            for (let i = 0; i < newOrder.length; i++) {
+                const trackId = newOrder[i];
+                // Cập nhật added_at = i (hoặc trường order nếu có)
+                await supabase
+                    .from('playlist_tracks')
+                    .update({ added_at: i })
+                    .eq('playlist_id', playlistId)
+                    .eq('track_id', trackId);
+            }
+        }
 
         console.log('Playlist updated:', updates);
         alert('Cập nhật thành công!');
