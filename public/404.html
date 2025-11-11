@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ManhMusic</title>
+    <script>
+        // Redirect any 404 to index.html with the original path
+        const path = window.location.pathname;
+        const hash = window.location.hash;
+        window.location.href = '/manh-music/' + hash;
+    </script>
+</head>
+<body>
+    <p>Redirecting...</p>
+</body>
+</html>

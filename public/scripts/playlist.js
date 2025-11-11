@@ -441,6 +441,7 @@ export function renderPlaylists(playlists, container) {
             card.style.setProperty('--card-primary-color', color);
             card.style.setProperty('--card-secondary-color', '#282828');
 
+
             let coverHtml = '';
             if (playlist.cover_url) {
                 const coverUrl = playlist.cover_url.startsWith('http') ? playlist.cover_url : getPublicPlaylistCoverUrl(playlist.cover_url);
@@ -453,11 +454,17 @@ export function renderPlaylists(playlists, container) {
                 </div>`;
             }
 
+            // Lấy số lượng bài hát từ playlist_tracks.count nếu có
+            let trackCount = 0;
+            if (playlist.playlist_tracks && typeof playlist.playlist_tracks.count === 'number') {
+                trackCount = playlist.playlist_tracks.count;
+            }
+
             card.innerHTML = `
                 ${coverHtml}
                 <div class="playlist-info">
                     <h3>${escapeHtml(playlist.name)}</h3>
-                    <p>${playlist.track_count || 0} bài hát</p>
+                    <p>${trackCount} bài hát</p>
                 </div>
             `;
 

@@ -908,7 +908,7 @@ async function loadUserPlaylists(forceRefresh = false) {
         const { data: playlists, error } = await supabaseQueryWithRetry(() =>
             supabase
                 .from('playlists')
-                .select('id, name, icon, color, cover_url')
+                .select('id, name, icon, color, cover_url, playlist_tracks(count)')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
         );
