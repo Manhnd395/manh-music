@@ -138,7 +138,7 @@ async function captureSessionFromUrl() {
                     const sessionData = {
                         access_token: accessToken,
                         refresh_token: refreshToken,
-                        expires_at: Date.now() / 1000 + 3600, // 1 hour from now
+                        expires_at: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
                         expires_in: 3600,
                         token_type: 'bearer'
                     };
@@ -146,30 +146,45 @@ async function captureSessionFromUrl() {
                     localStorage.setItem(storageKey, JSON.stringify(sessionData));
                     console.log('✅ Manually wrote session to localStorage');
                     
-                    // Trigger một lần refresh để Supabase nhận diện
-                    setTimeout(async () => {
-                        try {
-                            const { data: refreshData } = await supabase.auth.refreshSession();
-                            if (refreshData?.session) {
-                                console.log('✅ Session refreshed successfully via fallback');
-                                window.currentUser = refreshData.session.user;
+                    // Đợi một chút rồi refresh ngay (không dùng setTimeout)
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    
+                    console.log('🔄 Triggering refreshSession to activate stored tokens...');
+                    try {
+                        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+                        
+                        if (refreshError) {
+                            console.error('❌ Fallback refresh failed:', refreshError);
+                            // Thử lần cuối: getSession để xem localStorage có được đọc không
+                            const { data: sessionData } = await supabase.auth.getSession();
+                            if (sessionData?.session) {
+                                console.log('✅ Session loaded from localStorage via getSession');
+                                window.currentUser = sessionData.session.user;
+                                cleanupOAuthParams();
                                 window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
-                                    detail: { event: 'SIGNED_IN', session: refreshData.session } 
+                                    detail: { event: 'SIGNED_IN', session: sessionData.session } 
                                 }));
+                                return { session: sessionData.session };
                             }
-                        } catch (refreshErr) {
-                            console.error('Fallback refresh failed:', refreshErr);
+                            return { error: refreshError };
                         }
-                    }, 500);
-                    
-                    cleanupOAuthParams();
-                    
-                    // Trả về mock session để không block flow
-                    return { 
-                        session: null, 
-                        fallback: true,
-                        message: 'Session will be restored via refresh'
-                    };
+                        
+                        if (refreshData?.session) {
+                            console.log('✅ Session refreshed successfully via fallback for', refreshData.session.user.email);
+                            window.currentUser = refreshData.session.user;
+                            cleanupOAuthParams();
+                            window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
+                                detail: { event: 'SIGNED_IN', session: refreshData.session } 
+                            }));
+                            return { session: refreshData.session };
+                        } else {
+                            console.warn('⚠️ refreshSession returned no session');
+                            return { error: new Error('No session after refresh') };
+                        }
+                    } catch (refreshErr) {
+                        console.error('❌ Fallback refresh exception:', refreshErr);
+                        return { error: refreshErr };
+                    }
                     
                 } catch (fallbackError) {
                     console.error('❌ Fallback strategy also failed:', fallbackError);
@@ -240,11 +255,9 @@ async function captureSessionFromUrl() {
         return;
     }
     
-    // Nếu fallback strategy đang chờ refresh
-    if (captureResult?.fallback) {
-        console.log('⏳ Fallback strategy active, waiting for refresh...');
-        // Đợi thêm chút để refresh kịp chạy
-        await new Promise(resolve => setTimeout(resolve, 800));
+    // Nếu capture thất bại hoàn toàn
+    if (captureResult?.error) {
+        console.error('❌ OAuth capture failed completely:', captureResult.error);
     }
     
     try {
