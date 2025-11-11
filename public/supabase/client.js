@@ -20,29 +20,15 @@ if (window.location.hostname === 'localhost') {
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
-    storage: localStorage, // Chuyển sang localStorage để tránh bị block
+    storage: localStorage,
     autoRefreshToken: true,
-    detectSessionInUrl: false // tự xử lý callback để chủ động thời điểm xoá token
+    detectSessionInUrl: true, // Để Supabase tự xử lý OAuth callback
+    flowType: 'implicit' // Explicit về flow type
   }
 });window.supabase = supabase;
 window.dispatchEvent(new Event('SUPABASE_CLIENT_READY'));
 
 const OAUTH_PARAM_KEYS = ['code','state','access_token','refresh_token','expires_at','expires_in','token_type','provider_token','type'];
-
-// Helper: Decode JWT để lấy user info (không cần verify vì chỉ dùng để hiển thị)
-function decodeJWT(token) {
-    try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        return JSON.parse(jsonPayload);
-    } catch (e) {
-        console.error('Failed to decode JWT:', e);
-        return null;
-    }
-}
 
 const hasOAuthParamsInUrl = () => {
     const rawHash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
@@ -88,180 +74,15 @@ const cleanupOAuthParams = () => {
     if (hashChanged || searchChanged) {
         const newPath = url.pathname + (url.search ? url.search : '') + (url.hash ? url.hash : '');
         window.history.replaceState({}, document.title, newPath);
+        console.log('🧹 Cleaned OAuth params from URL');
     }
 };
 
-async function captureSessionFromUrl() {
-    // Hợp nhất hash và query để hỗ trợ cả implicit flow lẫn PKCE
-    const rawHash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
-    const rawSearch = window.location.search.startsWith('?') ? window.location.search.slice(1) : window.location.search;
-    const hashParams = new URLSearchParams(rawHash);
-    const searchParams = new URLSearchParams(rawSearch);
-
-    const accessToken = hashParams.get('access_token');
-    const refreshToken = hashParams.get('refresh_token');
-    const code = hashParams.get('code') || searchParams.get('code');
-
-    const hasOAuthParams = accessToken || refreshToken || code;
-    if (!hasOAuthParams) return null;
-
-    console.log('🔐 Detected OAuth params in URL - syncing Supabase session (manual flow)');
-    console.log('  → access_token:', accessToken ? `${accessToken.substring(0, 20)}... (length: ${accessToken.length})` : 'none');
-    console.log('  → refresh_token:', refreshToken ? `${refreshToken.substring(0, 20)}... (length: ${refreshToken.length})` : 'none');
-    console.log('  → code:', code ? `${code.substring(0, 20)}...` : 'none');
-
-    try {
-        if (accessToken && refreshToken) {
-            console.log('🔄 Attempting setSession with tokens from hash...');
-            
-            // STRATEGY 1: Thử setSession bình thường
-            try {
-                const setSessionPromise = supabase.auth.setSession({ 
-                    access_token: accessToken, 
-                    refresh_token: refreshToken 
-                });
-                
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('setSession timeout after 5s')), 5000)
-                );
-                
-                const { data, error } = await Promise.race([setSessionPromise, timeoutPromise]);
-                
-                if (error) {
-                    console.error('❌ setSession failed:', error);
-                    throw error;
-                }
-                
-                console.log('✅ Session stored from URL fragment for', data.session?.user?.email ?? 'unknown user');
-                window.currentUser = data.session?.user ?? null;
-                localStorage.removeItem('manh-music-logout');
-                localStorage.removeItem('manh-music-logout-time');
-                cleanupOAuthParams();
-                
-                window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
-                    detail: { event: 'SIGNED_IN', session: data.session } 
-                }));
-                
-                return { session: data.session };
-                
-            } catch (setSessionError) {
-                console.warn('⚠️ setSession failed, trying fallback: manual storage write');
-                
-                // STRATEGY 2: FALLBACK - Ghi trực tiếp vào localStorage VÀ decode JWT
-                try {
-                    const storageKey = `sb-${supabaseUrl.split('//')[1].split('.')[0]}-auth-token`;
-                    const sessionData = {
-                        access_token: accessToken,
-                        refresh_token: refreshToken,
-                        expires_at: Math.floor(Date.now() / 1000) + 3600,
-                        expires_in: 3600,
-                        token_type: 'bearer'
-                    };
-                    
-                    localStorage.setItem(storageKey, JSON.stringify(sessionData));
-                    console.log('✅ Manually wrote session to localStorage');
-                    
-                    // Decode JWT để lấy user info
-                    const payload = decodeJWT(accessToken);
-                    if (!payload) {
-                        throw new Error('Failed to decode access token');
-                    }
-                    
-                    console.log('✅ Decoded JWT payload:', payload.email);
-                    
-                    // Tạo mock session object từ JWT payload
-                    const mockSession = {
-                        access_token: accessToken,
-                        refresh_token: refreshToken,
-                        expires_at: payload.exp,
-                        expires_in: 3600,
-                        token_type: 'bearer',
-                        user: {
-                            id: payload.sub,
-                            email: payload.email,
-                            email_confirmed_at: payload.email_verified ? new Date().toISOString() : null,
-                            phone: payload.phone || '',
-                            created_at: new Date(payload.iat * 1000).toISOString(),
-                            updated_at: new Date().toISOString(),
-                            app_metadata: payload.app_metadata || {},
-                            user_metadata: payload.user_metadata || {},
-                            aud: payload.aud,
-                            role: payload.role
-                        }
-                    };
-                    
-                    window.currentUser = mockSession.user;
-                    console.log('✅ Created mock session from JWT for', mockSession.user.email);
-                    
-                    cleanupOAuthParams();
-                    
-                    // Dispatch SIGNED_IN event với mock session
-                    window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
-                        detail: { event: 'SIGNED_IN', session: mockSession } 
-                    }));
-                    
-                    // Thử refresh trong background (không await để không block)
-                    supabase.auth.refreshSession().then(({ data, error }) => {
-                        if (data?.session) {
-                            console.log('🔄 Background refresh succeeded, upgrading to real session');
-                            window.currentUser = data.session.user;
-                            window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
-                                detail: { event: 'TOKEN_REFRESHED', session: data.session } 
-                            }));
-                        } else if (error) {
-                            console.warn('⚠️ Background refresh failed, using mock session:', error.message);
-                        }
-                    }).catch(err => {
-                        console.warn('⚠️ Background refresh exception, using mock session:', err.message);
-                    });
-                    
-                    return { session: mockSession };
-                    
-                } catch (fallbackError) {
-                    console.error('❌ Fallback strategy also failed:', fallbackError);
-                    return { error: fallbackError };
-                }
-            }
-        }
-
-        if (code) {
-            console.log('🔄 Attempting exchangeCodeForSession with code...');
-            const exchangePromise = supabase.auth.exchangeCodeForSession(code);
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('exchangeCode timeout after 5s')), 5000)
-            );
-            
-            const { data, error } = await Promise.race([exchangePromise, timeoutPromise]);
-            
-            if (error) {
-                console.error('❌ Failed to exchange code for session:', error);
-                return { error };
-            }
-            console.log('✅ Session exchanged from authorization code for', data.session?.user?.email ?? 'unknown user');
-            window.currentUser = data.session?.user ?? null;
-            localStorage.removeItem('manh-music-logout');
-            localStorage.removeItem('manh-music-logout-time');
-            cleanupOAuthParams();
-            
-            window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
-                detail: { event: 'SIGNED_IN', session: data.session } 
-            }));
-            
-            return { session: data.session };
-        }
-    } catch (err) {
-        console.error('❌ Unexpected error while capturing OAuth session:', err);
-        return { error: err };
-    }
-
-    return null;
-}
-
 // ✅ Kiểm tra session (bước lấy dữ liệu)
 (async function restoreSessionAndNotify() {
-    const captureResult = await captureSessionFromUrl();
-    console.log('📊 captureSessionFromUrl result:', captureResult);
-
+    // Đợi Supabase xử lý OAuth callback tự động (nếu có)
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     const logoutFlag = localStorage.getItem('manh-music-logout');
     if (logoutFlag === 'true') {
         console.log('Detected recent logout — clearing auth & skipping restore');
@@ -277,18 +98,6 @@ async function captureSessionFromUrl() {
 
         window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { detail: { session: null } }));
         return;
-    }
-    
-    // Nếu vừa capture session thành công, dùng session đó luôn
-    if (captureResult?.session) {
-        console.log('✅ Using freshly captured session:', captureResult.session.user.email);
-        window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { detail: { session: captureResult.session } }));
-        return;
-    }
-    
-    // Nếu capture thất bại hoàn toàn
-    if (captureResult?.error) {
-        console.error('❌ OAuth capture failed completely:', captureResult.error);
     }
     
     try {
