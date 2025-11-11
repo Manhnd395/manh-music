@@ -3,29 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ManhMusic</title>
+    <title>ManhMusic - Redirect</title>
     <script>
-        // Check if this is OAuth callback on wrong path
+        // Handle OAuth callback redirect from wrong domain
         const hash = window.location.hash;
         const pathname = window.location.pathname;
         const isOAuthCallback = hash.includes('access_token');
         
         if (isOAuthCallback) {
-            // OAuth callback but wrong path, redirect to correct domain
+            console.log('OAuth callback detected on wrong domain, redirecting...');
             if (pathname === '/player.html') {
-                // Redirect from wrong domain to correct one
+                // Redirect to correct player.html
                 window.location.href = 'https://manhnd395.github.io/manh-music/player.html' + hash;
             } else {
-                // Redirect to index to handle OAuth
+                // Redirect to correct index
                 window.location.href = 'https://manhnd395.github.io/manh-music/' + hash;
             }
         } else {
-            // Regular 404, redirect to home
+            // Regular redirect
             window.location.href = 'https://manhnd395.github.io/manh-music/';
         }
     </script>
 </head>
 <body>
-    <p>Redirecting...</p>
+    <div style="text-align: center; margin-top: 50px; font-family: Arial;">
+        <h2>Redirecting...</h2>
+        <p>If not redirected automatically, <a href="https://manhnd395.github.io/manh-music/">click here</a></p>
+    </div>
 </body>
 </html>
