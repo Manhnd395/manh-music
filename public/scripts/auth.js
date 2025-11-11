@@ -27,8 +27,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     try {
         console.log('Supabase client:', supabase);
         console.log('Supabase client keys:', Object.keys(supabase || {}));
+        const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('getSession timeout')), ms));
         console.log('Auth.js: Restoring session via getSession...');
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session }, error } = await Promise.race([
+            supabase.auth.getSession(),
+            timeout(8000)
+        ]);
         console.log('Auth.js: Session object:', session);
         if (error) throw error;
 
