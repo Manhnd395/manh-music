@@ -18,15 +18,13 @@ if (window.location.hostname === 'localhost') {
 
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-        persistSession: true,
-        storage: sessionStorage, // mỗi tab là một phiên riêng
-        autoRefreshToken: true,
-        detectSessionInUrl: false // tự xử lý callback để chủ động thời điểm xoá token
-    }
-});
-
-window.supabase = supabase;
+  auth: {
+    persistSession: true,
+    storage: localStorage, // Chuyển sang localStorage để tránh bị block
+    autoRefreshToken: true,
+    detectSessionInUrl: false // tự xử lý callback để chủ động thời điểm xoá token
+  }
+});window.supabase = supabase;
 window.dispatchEvent(new Event('SUPABASE_CLIENT_READY'));
 
 const OAUTH_PARAM_KEYS = ['code','state','access_token','refresh_token','expires_at','expires_in','token_type','provider_token','type'];
@@ -93,41 +91,91 @@ async function captureSessionFromUrl() {
     if (!hasOAuthParams) return null;
 
     console.log('🔐 Detected OAuth params in URL - syncing Supabase session (manual flow)');
-    console.log('  → access_token:', accessToken ? `${accessToken.substring(0, 20)}...` : 'none');
-    console.log('  → refresh_token:', refreshToken ? `${refreshToken.substring(0, 20)}...` : 'none');
+    console.log('  → access_token:', accessToken ? `${accessToken.substring(0, 20)}... (length: ${accessToken.length})` : 'none');
+    console.log('  → refresh_token:', refreshToken ? `${refreshToken.substring(0, 20)}... (length: ${refreshToken.length})` : 'none');
     console.log('  → code:', code ? `${code.substring(0, 20)}...` : 'none');
 
     try {
         if (accessToken && refreshToken) {
             console.log('🔄 Attempting setSession with tokens from hash...');
-            const setSessionPromise = supabase.auth.setSession({ 
-                access_token: accessToken, 
-                refresh_token: refreshToken 
-            });
             
-            // Timeout để tránh treo vô hạn
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('setSession timeout after 5s')), 5000)
-            );
-            
-            const { data, error } = await Promise.race([setSessionPromise, timeoutPromise]);
-            
-            if (error) {
-                console.error('❌ Failed to set session from URL fragment:', error);
-                return { error };
+            // STRATEGY 1: Thử setSession bình thường
+            try {
+                const setSessionPromise = supabase.auth.setSession({ 
+                    access_token: accessToken, 
+                    refresh_token: refreshToken 
+                });
+                
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('setSession timeout after 5s')), 5000)
+                );
+                
+                const { data, error } = await Promise.race([setSessionPromise, timeoutPromise]);
+                
+                if (error) {
+                    console.error('❌ setSession failed:', error);
+                    throw error;
+                }
+                
+                console.log('✅ Session stored from URL fragment for', data.session?.user?.email ?? 'unknown user');
+                window.currentUser = data.session?.user ?? null;
+                localStorage.removeItem('manh-music-logout');
+                localStorage.removeItem('manh-music-logout-time');
+                cleanupOAuthParams();
+                
+                window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
+                    detail: { event: 'SIGNED_IN', session: data.session } 
+                }));
+                
+                return { session: data.session };
+                
+            } catch (setSessionError) {
+                console.warn('⚠️ setSession failed, trying fallback: manual storage write');
+                
+                // STRATEGY 2: FALLBACK - Ghi trực tiếp vào localStorage
+                try {
+                    const storageKey = `sb-${supabaseUrl.split('//')[1].split('.')[0]}-auth-token`;
+                    const sessionData = {
+                        access_token: accessToken,
+                        refresh_token: refreshToken,
+                        expires_at: Date.now() / 1000 + 3600, // 1 hour from now
+                        expires_in: 3600,
+                        token_type: 'bearer'
+                    };
+                    
+                    localStorage.setItem(storageKey, JSON.stringify(sessionData));
+                    console.log('✅ Manually wrote session to localStorage');
+                    
+                    // Trigger một lần refresh để Supabase nhận diện
+                    setTimeout(async () => {
+                        try {
+                            const { data: refreshData } = await supabase.auth.refreshSession();
+                            if (refreshData?.session) {
+                                console.log('✅ Session refreshed successfully via fallback');
+                                window.currentUser = refreshData.session.user;
+                                window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
+                                    detail: { event: 'SIGNED_IN', session: refreshData.session } 
+                                }));
+                            }
+                        } catch (refreshErr) {
+                            console.error('Fallback refresh failed:', refreshErr);
+                        }
+                    }, 500);
+                    
+                    cleanupOAuthParams();
+                    
+                    // Trả về mock session để không block flow
+                    return { 
+                        session: null, 
+                        fallback: true,
+                        message: 'Session will be restored via refresh'
+                    };
+                    
+                } catch (fallbackError) {
+                    console.error('❌ Fallback strategy also failed:', fallbackError);
+                    return { error: fallbackError };
+                }
             }
-            console.log('✅ Session stored from URL fragment for', data.session?.user?.email ?? 'unknown user');
-            window.currentUser = data.session?.user ?? null;
-            localStorage.removeItem('manh-music-logout');
-            localStorage.removeItem('manh-music-logout-time');
-            cleanupOAuthParams();
-            
-            // Dispatch ngay sau khi set thành công
-            window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
-                detail: { event: 'SIGNED_IN', session: data.session } 
-            }));
-            
-            return { session: data.session };
         }
 
         if (code) {
@@ -149,7 +197,6 @@ async function captureSessionFromUrl() {
             localStorage.removeItem('manh-music-logout-time');
             cleanupOAuthParams();
             
-            // Dispatch ngay sau khi exchange thành công
             window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
                 detail: { event: 'SIGNED_IN', session: data.session } 
             }));
@@ -191,6 +238,13 @@ async function captureSessionFromUrl() {
         console.log('✅ Using freshly captured session:', captureResult.session.user.email);
         window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { detail: { session: captureResult.session } }));
         return;
+    }
+    
+    // Nếu fallback strategy đang chờ refresh
+    if (captureResult?.fallback) {
+        console.log('⏳ Fallback strategy active, waiting for refresh...');
+        // Đợi thêm chút để refresh kịp chạy
+        await new Promise(resolve => setTimeout(resolve, 800));
     }
     
     try {
