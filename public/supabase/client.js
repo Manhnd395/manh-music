@@ -95,10 +95,18 @@ async function manualCaptureSession() {
     try {
         // QUAN TRỌNG: Dùng setSession() của Supabase SDK để lưu đúng cách
         console.log('🔄 Calling supabase.auth.setSession()...');
-        const { data, error } = await supabase.auth.setSession({
+        
+        // Timeout protection
+        const setSessionPromise = supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
         });
+        
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('setSession timeout')), 3000)
+        );
+        
+        const { data, error } = await Promise.race([setSessionPromise, timeoutPromise]);
         
         if (error) {
             console.error('❌ setSession failed:', error);
@@ -126,6 +134,7 @@ async function manualCaptureSession() {
     } catch (error) {
         console.error('❌ Manual capture exception:', error);
         // Fallback
+        console.log('⚠️ Exception caught, using API fallback...');
         return await manualApiCapture(accessToken, refreshToken);
     }
 }
