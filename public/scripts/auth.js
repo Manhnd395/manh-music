@@ -365,10 +365,14 @@ async function loginWithGoogle() {
     console.log('Login with Google called');
     
     try {
+        const basePath = import.meta.env.BASE_URL || '/manh-music/';
+        const redirectUrl = `${window.location.origin}${basePath}player.html`;
+        console.log('OAuth redirect URL:', redirectUrl);
+        
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/player.html` 
+                redirectTo: redirectUrl
             }
         });
 

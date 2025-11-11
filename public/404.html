@@ -10,8 +10,8 @@
         const isOAuthCallback = hash.includes('access_token');
         
         if (isOAuthCallback) {
-            // OAuth callback but wrong path, redirect to correct domain
-            window.location.href = 'https://manhnd395.github.io/manh-music/' + hash;
+            // OAuth callback but wrong path, redirect to player.html with hash
+            window.location.href = 'https://manhnd395.github.io/manh-music/player.html' + hash;
         } else {
             // Regular 404, redirect to home
             window.location.href = 'https://manhnd395.github.io/manh-music/';

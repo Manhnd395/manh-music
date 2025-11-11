@@ -14,14 +14,15 @@
   </script>
   <script type="module" src="./supabase/client.js"></script>
   <script type="module" src="./scripts/auth.js"></script>
-  <script>
+  <script type="module">
     // Handle OAuth callback and redirect
     window.addEventListener('load', () => {
       // Check if URL has OAuth callback tokens (from Supabase)
       if (window.location.hash.includes('access_token')) {
         console.log('OAuth callback detected, redirecting to player...');
-        // Redirect to player.html with hash parameters
-        window.location.href = '/manh-music/player.html' + window.location.hash;
+        // Use base path from import.meta.env or fallback
+        const basePath = '/manh-music/';
+        window.location.href = basePath + 'player.html' + window.location.hash;
         return;
       }
       
