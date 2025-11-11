@@ -1392,7 +1392,7 @@ window.loadPlaylistTracks = async function(playlistId, shouldPlay = false) {
         // BƯỚC 3: Fetch tracks details bằng IN clause (chỉ lấy trường cần thiết)
         const { data: tracks, error: fetchTracksError } = await supabase
             .from('tracks')
-            .select('id, title, artist, file_url, cover_url, user_id, duration')
+            .select('id, title, artist, file_url, cover_url, user_id')
             .in('id', trackIds);
 
         if (fetchTracksError) {

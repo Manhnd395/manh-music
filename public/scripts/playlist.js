@@ -9,6 +9,8 @@ window.loadDetailPlaylist = async function(playlistId) {
         console.error('Lỗi: Thiếu ID playlist');
         return;
     }
+    // Log giá trị playlistId để debug lỗi 400
+    console.log('PlaylistId truy vấn:', playlistId, typeof playlistId);
 
     // NGĂN GỌI NHIỀU LẦN
     if (window.isLoadingPlaylistDetail) {
@@ -439,7 +441,17 @@ export function renderPlaylists(playlists, container) {
         card.style.setProperty('--card-primary-color', color);
         card.style.setProperty('--card-secondary-color', '#282828');
 
+        // Nếu có cover_url thì hiển thị ảnh nền, không có thì dùng màu
+        let coverHtml = '';
+        if (playlist.cover_url) {
+            const coverUrl = playlist.cover_url.startsWith('http') ? playlist.cover_url : getPublicPlaylistCoverUrl(playlist.cover_url);
+            coverHtml = `<div class="playlist-cover" style="background-image:url('${coverUrl}');background-size:cover;background-position:center;border-radius:8px 8px 0 0;width:100%;height:120px;"></div>`;
+        } else {
+            coverHtml = `<div class="playlist-cover" style="background:${color};height:120px;border-radius:8px 8px 0 0;"></div>`;
+        }
+
         card.innerHTML = `
+            ${coverHtml}
             <div class="playlist-info">
                 <h3>${escapeHtml(playlist.name)}</h3>
                 <p>${playlist.track_count || 0} bài hát</p>
