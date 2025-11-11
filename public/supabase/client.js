@@ -233,6 +233,15 @@ async function manualApiCapture(accessToken, refreshToken) {
         let session = data?.session ?? null;
         console.log('client.js getSession result:', session?.user?.email ?? null, error ?? null);
         
+        // Debug: Check localStorage
+        const storageKey = `sb-${supabaseUrl.split('//')[1].split('.')[0]}-auth-token`;
+        const storedData = localStorage.getItem(storageKey);
+        console.log('📦 localStorage check:', {
+            hasData: !!storedData,
+            dataLength: storedData?.length || 0,
+            sessionFromGet: !!session
+        });
+        
         if (session?.user) {
             window.currentUser = session.user;
             console.log('✅ Client session restored & dispatched:', session.user.email);
