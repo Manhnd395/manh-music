@@ -70,12 +70,13 @@ export async function loadHomeContent() {
     }
 }
 
-// If the real asset is missing on the deployed site, fall back to an embedded tiny PNG to avoid 404 loops
-const defaultCover = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
+// Use direct Supabase URL for default cover
+const defaultCover = 'https://lezswjtnlsmznkgrzgmu.supabase.co/storage/v1/object/public/cover/449bd474-7a51-4c22-b4a4-2ad8736d6fad/default-cover.webp';
 window.updatePlayerBar = function(track) {
     const cover = document.getElementById('trackCover');
     const title = document.getElementById('trackTitle');
     const artist = document.getElementById('trackArtist');
+
 
     if (cover) {
         if (track.cover_url && track.cover_url.trim() !== '') {
@@ -83,7 +84,7 @@ window.updatePlayerBar = function(track) {
             cover.alt = track.title || 'Track cover';
             cover.style.display = 'block';
         } else {
-            cover.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRUVFRUVFIi8+CjxwYXRoIGQ9Ik0yMCAxMkMxNS41ODQgMTIgMTIgMTUuNTg0IDEyIDIwQzEyIDI0LjQxNiAxNS41ODQgMjggMjAgMjhDMjQuNDE2IDI4IDI4IDI0LjQxNiAyOCAyMEMyOCAxNS41ODQgMjQuNDE2IDEyIDIwIDEyWk0yMi41IDIxLjI1TDE5IDIzVjE3SDIyLjVWMjEuMjVaIiBmaWxsPSIjOTk5OTk5Ii8+Cjwvc3ZnPgo=';
+            cover.src = defaultCover;
             cover.alt = 'No cover';
             cover.style.display = 'block';
         }
@@ -119,7 +120,7 @@ window.updatePlayerBar = function(track) {
 
     // Render nội dung chính
     rightPanel.innerHTML = `
-        <div class="right-panel-content">s
+        <div class="right-panel-content">
             <div class="current-playlist-header">${window.currentPlaylistSource || 'Gợi ý cho bạn'}</div>
           <img src="${track.cover_url || defaultCover}" 
               alt="${track.title} cover" 
@@ -507,7 +508,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const path = (p) => p.replace(/^\/+/, '');
 
     window.loadComponent(path('components/sidebar.html'), 'sidebar');
-    window.loadComponent(path('components/player-bar.html'), 'playerBar');
+    window.loadComponent(path('components/player-bar.html'), 'playerBar').then(() => {
+        // Ensure player controls are initialized after player bar is loaded
+        if (window.initializePlayerControls) {
+            window.initializePlayerControls();
+        }
+    });
     window.loadComponent(path('home-content.html'), 'mainContentArea')
         .then(success => {
             if (success) {

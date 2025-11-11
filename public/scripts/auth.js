@@ -200,7 +200,7 @@ async function signup() {
                 email: email,
                 username: username,
                 birthday: birthday,
-                avatar_url: null,  // Default
+                avatar_url: 'https://lezswjtnlsmznkgrzgmu.supabase.co/storage/v1/object/public/cover/449bd474-7a51-4c22-b4a4-2ad8736d6fad/default-avatar.png',  // Default
                 updated_at: new Date().toISOString()
             });
 
@@ -322,7 +322,7 @@ async function loginWithEmail() {
                         email: user.email,
                         username,
                         birthday,
-                        avatar_url: profile?.avatar_url || null,
+                        avatar_url: profile?.avatar_url || 'https://lezswjtnlsmznkgrzgmu.supabase.co/storage/v1/object/public/cover/449bd474-7a51-4c22-b4a4-2ad8736d6fad/default-avatar.png',
                         updated_at: new Date().toISOString()
                     }),
                 timeoutPromise(3000)

@@ -36,9 +36,9 @@ window.currentUser = window.currentUser || null;
 window.appFunctions = window.appFunctions || {};
 // window.appFunctions.getCurrentUserId = async () => window.currentUser?.id || null;
 
-// Use a small embedded PNG fallback to avoid repeated network 404s when the asset isn't present
-const FALLBACK_COVER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
-console.log('FALLBACK_COVER data-uri in use (no network request):', FALLBACK_COVER);
+// Use direct Supabase URL for default cover
+const FALLBACK_COVER = 'https://lezswjtnlsmznkgrzgmu.supabase.co/storage/v1/object/public/cover/449bd474-7a51-4c22-b4a4-2ad8736d6fad/default-cover.webp';
+console.log('FALLBACK_COVER Supabase URL in use:', FALLBACK_COVER);
 
 window.currentPlaylists = window.currentPlaylists || {};
 
@@ -372,7 +372,7 @@ function updateProgressBar() {
 }
 
 async function updateProfileDisplay(user, forceRefresh = false) { 
-    const defaultAvatarUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII='; 
+    const defaultAvatarUrl = 'https://lezswjtnlsmznkgrzgmu.supabase.co/storage/v1/object/public/cover/449bd474-7a51-4c22-b4a4-2ad8736d6fad/default-avatar.png'; 
     const headerUserElement = document.getElementById('userName'); 
     const headerAvatarElement = document.getElementById('userAvatar');
     const profileModalAvatar = document.getElementById('currentAvatarPreview');
