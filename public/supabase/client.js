@@ -93,7 +93,47 @@ async function manualCaptureSession() {
     console.log('  → refresh_token length:', refreshToken.length);
     
     try {
-        // Gọi trực tiếp API endpoint thay vì dùng SDK
+        // QUAN TRỌNG: Dùng setSession() của Supabase SDK để lưu đúng cách
+        console.log('🔄 Calling supabase.auth.setSession()...');
+        const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+        });
+        
+        if (error) {
+            console.error('❌ setSession failed:', error);
+            // Fallback: Gọi API thủ công
+            console.log('⚠️ Trying API fallback...');
+            return await manualApiCapture(accessToken, refreshToken);
+        }
+        
+        if (data?.session) {
+            console.log('✅ Session set via SDK for', data.session.user.email);
+            window.currentUser = data.session.user;
+            localStorage.removeItem('manh-music-logout');
+            localStorage.removeItem('manh-music-logout-time');
+            cleanupOAuthParams();
+            
+            window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { 
+                detail: { event: 'SIGNED_IN', session: data.session } 
+            }));
+            
+            return data.session;
+        }
+        
+        return null;
+        
+    } catch (error) {
+        console.error('❌ Manual capture exception:', error);
+        // Fallback
+        return await manualApiCapture(accessToken, refreshToken);
+    }
+}
+
+// Fallback: Direct API call
+async function manualApiCapture(accessToken, refreshToken) {
+    try {
+        console.log('🔧 Fallback: Direct API call...');
         const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
             method: 'GET',
             headers: {
@@ -123,7 +163,7 @@ async function manualCaptureSession() {
         localStorage.setItem(storageKey, JSON.stringify(sessionData));
         localStorage.removeItem('manh-music-logout');
         localStorage.removeItem('manh-music-logout-time');
-        console.log('✅ Session saved to localStorage');
+        console.log('✅ Session saved to localStorage via fallback');
         
         window.currentUser = user;
         cleanupOAuthParams();
@@ -136,7 +176,7 @@ async function manualCaptureSession() {
         return sessionData;
         
     } catch (error) {
-        console.error('❌ Manual capture failed:', error);
+        console.error('❌ Fallback API capture failed:', error);
         return null;
     }
 }
