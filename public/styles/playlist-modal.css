@@ -1,5 +1,9 @@
 /* Playlist Edit Modal Styles */
+/* Overlay (legacy) root */
 .pl-modal-root { position: fixed; inset:0; z-index: 10000; display:flex; align-items:center; justify-content:center; font-family: var(--font-family, system-ui); }
+/* Inline panel root (anchored in #playlistHeader) */
+.pl-inline-root { position: relative; width:100%; margin-top:18px; font-family: var(--font-family, system-ui); }
+.pl-inline-root .pl-modal { width:100%; max-width:100%; border:1px solid #262626; box-shadow:0 6px 24px -8px rgba(0,0,0,.55); }
 .pl-backdrop { position:absolute; inset:0; background:rgba(0,0,0,0.65); animation:plFade .25s ease; }
 .pl-modal { position:relative; background:linear-gradient(180deg,#1b1b1b 0%, #141414 100%); color:#fff; width:840px; max-width:95%; border-radius:14px; padding:28px 28px 30px; box-shadow:0 18px 50px -12px rgba(0,0,0,.7); display:flex; flex-direction:column; animation:plPop .28s cubic-bezier(.25,.8,.25,1); }
 .pl-modal:focus { outline:none; }
@@ -37,6 +41,8 @@
 .pl-btn-secondary { background:#2b2b2b; color:#e0e0e0; }
 .pl-btn-secondary:hover { background:#3a3a3a; }
 .pl-btn:active { transform:scale(.96); }
+/* Hidden file input for cover selection */
+.pl-file-hidden { display:none; }
 @media (max-width:880px) { .pl-grid { grid-template-columns: 1fr; } .pl-cover-wrapper { width:100%; height:200px; } }
 @keyframes plFade { from { opacity:0; } to { opacity:1; } }
 @keyframes plPop { from { opacity:0; transform:scale(.94); } to { opacity:1; transform:scale(1); } }

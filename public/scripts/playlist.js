@@ -142,8 +142,8 @@ window.toggleEditPlaylist = function() {
 
 // Create / open modal
 window.openPlaylistEditModal = async function(playlistId) {
-    const existing = document.getElementById('playlistEditModal');
-    if (existing) existing.remove();
+    // Remove any existing editor blocks (inline or overlay)
+    document.querySelectorAll('#playlistEditPanel, #playlistEditModal').forEach(el => el.remove());
 
     const { data: playlist, error } = await supabase
         .from('playlists')
@@ -161,19 +161,18 @@ window.openPlaylistEditModal = async function(playlistId) {
         const link = document.createElement('link');
         link.id = 'playlistModalStylesheet';
         link.rel = 'stylesheet';
-        link.href = './styles/playlist-modal.css';
+        link.href = '/styles/playlist-modal.css';
         document.head.appendChild(link);
     }
 
-    const modal = document.createElement('div');
-    modal.id = 'playlistEditModal';
-    modal.className = 'pl-modal-root';
-    modal.innerHTML = `
-        <div class="pl-backdrop" tabindex="-1" aria-hidden="false"></div>
-        <div class="pl-modal" role="dialog" aria-modal="true" aria-label="Chỉnh sửa playlist">
+    const panel = document.createElement('div');
+    panel.id = 'playlistEditPanel';
+    panel.className = 'pl-inline-root';
+    panel.innerHTML = `
+        <div class="pl-modal" role="group" aria-label="Chỉnh sửa playlist">
             <button class="pl-close" aria-label="Đóng">✕</button>
             <div class="pl-grid">
-                <div class="pl-cover-wrapper" id="plCoverWrapper">
+                <div class="pl-cover-wrapper" id="plCoverWrapper" title="Chọn ảnh bìa">
                     ${playlist.cover_url ? `<img id="plCoverPreview" src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" alt="Playlist cover" onerror="this.src='${defaultCover}'"/>` : `<div id="plCoverPreview" class="pl-cover-placeholder">No Image</div>`}
                     <div class="pl-cover-overlay">Chọn ảnh</div>
                 </div>
@@ -201,10 +200,8 @@ window.openPlaylistEditModal = async function(playlistId) {
                             </label>
                         </div>
                     </div>
-                    <div class="pl-row">
-                        <label for="plCoverFile">Ảnh bìa</label>
-                        <input type="file" id="plCoverFile" accept="image/*" />
-                    </div>
+                    <!-- Hidden file input, triggered by clicking cover -->
+                    <input type="file" id="plCoverFile" accept="image/*" class="pl-file-hidden" aria-label="Chọn ảnh bìa" />
                     <p class="pl-hint">Bạn xác nhận có quyền sử dụng ảnh tải lên.</p>
                     <div class="pl-actions">
                         <button type="button" class="pl-btn pl-btn-secondary" id="plCancelBtn">Hủy</button>
@@ -214,29 +211,30 @@ window.openPlaylistEditModal = async function(playlistId) {
             </div>
         </div>`;
 
-    document.body.appendChild(modal);
+    const header = document.getElementById('playlistHeader');
+    if (header) header.appendChild(panel); else document.body.appendChild(panel);
 
     // Focus for accessibility
-    setTimeout(() => modal.querySelector('#plName')?.focus(), 30);
+    setTimeout(() => panel.querySelector('#plName')?.focus(), 30);
 
     // Event handlers
-    const closeModal = () => modal.remove();
-    modal.querySelector('.pl-close')?.addEventListener('click', closeModal);
-    modal.querySelector('#plCancelBtn')?.addEventListener('click', closeModal);
-    modal.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
+    const closePanel = () => panel.remove();
+    panel.querySelector('.pl-close')?.addEventListener('click', closePanel);
+    panel.querySelector('#plCancelBtn')?.addEventListener('click', closePanel);
+    panel.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closePanel(); } });
 
     // Live counters
-    const nameInput = modal.querySelector('#plName');
-    const descInput = modal.querySelector('#plDesc');
-    const nameCounter = modal.querySelector('#plNameCounter');
-    const descCounter = modal.querySelector('#plDescCounter');
+    const nameInput = panel.querySelector('#plName');
+    const descInput = panel.querySelector('#plDesc');
+    const nameCounter = panel.querySelector('#plNameCounter');
+    const descCounter = panel.querySelector('#plDescCounter');
     nameInput.addEventListener('input', () => nameCounter.textContent = `${nameInput.value.length}/80`);
     descInput.addEventListener('input', () => descCounter.textContent = `${descInput.value.length}/300`);
 
     // Cover interactions
-    const fileInput = modal.querySelector('#plCoverFile');
-    const coverWrapper = modal.querySelector('#plCoverWrapper');
-    const coverPreview = modal.querySelector('#plCoverPreview');
+    const fileInput = panel.querySelector('#plCoverFile');
+    const coverWrapper = panel.querySelector('#plCoverWrapper');
+    const coverPreview = panel.querySelector('#plCoverPreview');
     coverWrapper.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -253,8 +251,17 @@ window.openPlaylistEditModal = async function(playlistId) {
         }
     });
 
+    // Prevent global player shortcuts while typing inside the form
+    panel.addEventListener('keydown', (e) => {
+        const t = e.target;
+        const tag = t?.tagName?.toUpperCase();
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || t?.isContentEditable) {
+            e.stopPropagation();
+        }
+    });
+
     // Submit
-    modal.querySelector('#playlistEditForm').addEventListener('submit', (e) => {
+    panel.querySelector('#playlistEditForm').addEventListener('submit', (e) => {
         e.preventDefault();
         window.savePlaylistModal(playlist.id);
     });
@@ -281,7 +288,7 @@ window.savePlaylistModal = async function(playlistId) {
         try {
                 const { error } = await supabase.from('playlists').update(updates).eq('id', playlistId);
                 if (error) throw error;
-                document.getElementById('playlistEditModal')?.remove();
+                document.getElementById('playlistEditPanel')?.remove();
                 await window.loadDetailPlaylist(playlistId);
                 await window.appFunctions.loadUserPlaylists(true);
                 alert('Đã lưu playlist');

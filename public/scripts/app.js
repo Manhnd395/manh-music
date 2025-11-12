@@ -258,7 +258,11 @@ function handleProgressChange(e) {
 }
 
 function handleKeyboardShortcuts(e) {
-    if (e.target.tagName === 'INPUT') return;
+    const t = e.target;
+    const tag = (t && t.tagName) ? t.tagName.toUpperCase() : '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) {
+        return; // Don't hijack keys while typing
+    }
 
     switch(e.code) {
         case 'Space':
