@@ -1187,6 +1187,64 @@ window.handleCreatePlaylistSubmit = async function(event) {
 };
 window.handleCreatePlaylistSubmit = handleCreatePlaylistSubmit;
 
+// Reuse edit modal UI for creating a new playlist
+window.openCreatePlaylistModal = function() {
+    // Open modal with empty data and on save, call create instead of update
+    const temp = { id: 'NEW', name: '', description: '', color: '#1db954', cover_url: null, is_public: false };
+    // Ensure playlist.js is loaded and use its renderer with slight override
+    import('./playlist.js').then(mod => {
+        // Monkey-patch save handler for this session
+        const originalSave = window.savePlaylistModal;
+        window.savePlaylistModal = async function(_) {
+            const name = document.getElementById('plName')?.value.trim();
+            const desc = document.getElementById('plDesc')?.value.trim();
+            const color = document.getElementById('plColor')?.value;
+            const isPublic = !!document.getElementById('plPublic')?.checked;
+            const coverFile = document.getElementById('plCoverFile')?.files?.[0];
+
+            if (!name) return alert('Tên không được để trống');
+            let coverUrl = null;
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                // Tạo playlist trước để có id nếu cần upload cover
+                const created = await mod.createPlaylist({ name, description: desc, color, is_public: isPublic, cover_url: null });
+                if (coverFile) {
+                    const uploadedUrl = await window.uploadPlaylistCover(user.id, created.id, coverFile);
+                    if (uploadedUrl) {
+                        await supabase.from('playlists').update({ cover_url: uploadedUrl }).eq('id', created.id);
+                    }
+                }
+                document.getElementById('playlistEditModal')?.remove();
+                await window.appFunctions.loadUserPlaylists(true);
+                alert('Đã tạo playlist');
+            } catch (err) {
+                console.error('Lỗi tạo playlist:', err);
+                alert('Lỗi: ' + err.message);
+            } finally {
+                window.savePlaylistModal = originalSave;
+            }
+        };
+
+        // Open modal with temp data
+        window.openPlaylistEditModal(temp.id);
+        // Set initial values for create
+        const nameEl = document.getElementById('plName');
+        const descEl = document.getElementById('plDesc');
+        const colorEl = document.getElementById('plColor');
+        const publicEl = document.getElementById('plPublic');
+        if (nameEl) nameEl.value = '';
+        if (descEl) descEl.value = '';
+        if (colorEl) colorEl.value = '#1db954';
+        if (publicEl) publicEl.checked = false;
+        const nameCounter = document.getElementById('plNameCounter');
+        const descCounter = document.getElementById('plDescCounter');
+        if (nameCounter) nameCounter.textContent = '0/80';
+        if (descCounter) descCounter.textContent = '0/300';
+        const titleEl = document.querySelector('#playlistEditModal .pl-title');
+        if (titleEl) titleEl.textContent = 'Create playlist';
+    });
+};
+
 function toggleShuffle() {
     isShuffling = !isShuffling;
     const shuffleBtn = document.getElementById('shuffleBtn');

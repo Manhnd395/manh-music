@@ -189,8 +189,9 @@ window.openPlaylistEditModal = async function(playlistId) {
             <button class="pl-close" aria-label="Đóng">✕</button>
             <h2 class="pl-title">Edit details</h2>
             <div class="pl-grid">
-                <div class="pl-cover-wrapper" id="plCoverWrapper" aria-label="Ảnh bìa hiện tại">
+                <div class="pl-cover-wrapper" id="plCoverWrapper" aria-label="Ảnh bìa hiện tại (nhấn để chọn ảnh mới)">
                     ${playlist.cover_url ? `<img id="plCoverPreview" src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" alt="Playlist cover" onerror="this.src='${defaultCover}'"/>` : `<div id="plCoverPreview" class="pl-cover-placeholder">No Image</div>`}
+                    <input type="file" id="plCoverFile" accept="image/*" class="pl-file-hidden" aria-label="Chọn ảnh bìa" />
                 </div>
                 <form id="playlistEditForm" class="pl-form" novalidate>
                     <div class="pl-row">
@@ -216,7 +217,7 @@ window.openPlaylistEditModal = async function(playlistId) {
                             </label>
                         </div>
                     </div>
-                    <p class="pl-hint">Ảnh bìa sửa ở trang chi tiết. Thay đổi tên, mô tả, màu và trạng thái công khai tại đây.</p>
+                    <p class="pl-hint">Nhấn vào ảnh bìa để chọn ảnh mới. (Quyền sử dụng ảnh do bạn chịu trách nhiệm)</p>
                     <div class="pl-actions">
                         <button type="button" class="pl-btn pl-btn-secondary" id="plCancelBtn">Hủy</button>
                         <button type="submit" class="pl-btn pl-btn-primary" id="plSaveBtn">Lưu</button>
@@ -247,6 +248,27 @@ window.openPlaylistEditModal = async function(playlistId) {
 
     // Không hỗ trợ chọn ảnh trong modal – giữ vùng ảnh bìa chỉ để hiển thị
 
+    // Cover interactions
+    const coverInput = root.querySelector('#plCoverFile');
+    const coverWrapper = root.querySelector('#plCoverWrapper');
+    const coverPreview = root.querySelector('#plCoverPreview');
+    coverWrapper.addEventListener('click', () => coverInput?.click());
+    coverInput?.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const url = URL.createObjectURL(file);
+            if (coverPreview && coverPreview.tagName === 'IMG') {
+                coverPreview.src = url;
+            } else if (coverPreview) {
+                const img = document.createElement('img');
+                img.id = 'plCoverPreview';
+                img.src = url;
+                img.alt = 'Playlist cover';
+                coverPreview.replaceWith(img);
+            }
+        }
+    });
+
     // Prevent global player shortcuts while typing inside the form
     root.addEventListener('keydown', (e) => {
         const t = e.target;
@@ -269,7 +291,7 @@ window.savePlaylistModal = async function(playlistId) {
         const desc = document.getElementById('plDesc')?.value.trim();
         const color = document.getElementById('plColor')?.value;
         const isPublic = !!document.getElementById('plPublic')?.checked;
-        const coverFile = document.getElementById('plCoverFile')?.files[0];
+    const coverFile = document.getElementById('plCoverFile')?.files?.[0];
         if (!name) {
                 alert('Tên không được để trống');
                 return;
