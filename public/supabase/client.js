@@ -10,7 +10,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Supabase config missing');
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     storage: localStorage,
@@ -19,6 +19,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     flowType: 'implicit'
   }
 });window.supabase = supabase;
+export default supabase;
 window.dispatchEvent(new Event('SUPABASE_CLIENT_READY'));
 
 // This IIFE (Immediately Invoked Function Expression) runs on script load.

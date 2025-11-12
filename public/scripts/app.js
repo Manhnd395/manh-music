@@ -40,37 +40,7 @@ console.log('FALLBACK_COVER Supabase URL in use:', FALLBACK_COVER);
 
 window.currentPlaylists = window.currentPlaylists || {};
 
-// Centralized initialization logic
-async function initializeApp(user) {
-    if (appInitialized || initializationInProgress) {
-        console.log('App already initialized or in progress. Skipping.');
-        // If home page isn't loaded, try loading it. This can happen on re-authentication.
-        if (document.getElementById('mainContentArea') && !document.getElementById('home-grid')) {
-             console.log("Re-initializing, home content not found, loading it now.");
-             await loadHomePage(true); // skipFetch = true to use cache
-        }
-        return;
-    }
-    console.log(`🚀 Initializing app for user: ${user.email}`);
-    initializationInProgress = true;
-
-    try {
-        await Promise.all([
-            loadHomePage(false), // Fetch fresh data on first load
-            testSupabaseConnection()
-        ]);
-
-        console.log('✅ App initialized successfully.');
-        appInitialized = true;
-        document.dispatchEvent(new CustomEvent('APP_READY', { detail: { user } }));
-
-    } catch (error) {
-        console.error('💥 CRITICAL: App initialization failed:', error);
-        // Optionally, show an error message to the user
-    } finally {
-        initializationInProgress = false;
-    }
-}
+// initializeApp defined later (single source of truth). Removed duplicate here.
 
 // Listen for the single source of truth for auth changes
 window.addEventListener('SUPABASE_AUTH_CHANGE', async (e) => {
@@ -175,25 +145,7 @@ if (window.location.hostname === 'localhost') {
     });
 }
 
-async function testSupabaseConnection() {
-    console.log('🧪 Testing Supabase connection...');
-    const start = Date.now();
-    try {
-        // A lightweight query to test authentication and RLS
-        const { data, error } = await supabase.from('profiles').select('id').limit(1);
-        const duration = Date.now() - start;
-        if (error) {
-            console.error(`🧪 Supabase connection test failed in ${duration}ms.`, error);
-            return false;
-        }
-        console.log(`✅ Supabase connection test successful in ${duration}ms.`);
-        return true;
-    } catch (err) {
-        const duration = Date.now() - start;
-        console.error(`💥 Supabase connection test threw an exception in ${duration}ms.`, err);
-        return false;
-    }
-}
+// testSupabaseConnection defined later. Removed duplicate here.
 
 function togglePlayPause() {
     console.log('🎵 togglePlayPause called, current state:', {
