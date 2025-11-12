@@ -2120,7 +2120,8 @@ window.loadMyUploads = async function(forceRefresh = false) {
 };
 
 
-window.loadHomePage = async function() {
+window.loadHomePage = async function(skipFetch = false) {
+    // Nếu đã load hoàn chỉnh rồi thì bỏ qua
     if (homePageLoaded) {
         console.log('Home page already loaded, skipping');
         return;
@@ -2133,45 +2134,48 @@ window.loadHomePage = async function() {
     }
 
     try {
-        homePageLoaded = true;
-        console.log('Starting loadHomePage...');
+        console.log('Starting loadHomePage... (skipFetch =', skipFetch, ')');
 
-        // ĐÚNG URL
-        const homePath = window.getBaseUrl() + '/home-content.html';
-        console.log('Fetching home content from:', homePath);
-
-        const response = await fetch(homePath);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const htmlContent = await response.text();
-        mainContentArea.innerHTML = htmlContent;
-        console.log('home-content.html loaded into #mainContentArea');
-
-        // CHỜ DOM CẬP NHẬT
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // KIỂM TRA CÁC ELEMENT CẦN THIẾT
-        const homeSection = document.getElementById('home-section');
-        const playlistGrid = document.getElementById('playlistGrid');
-        const historyList = document.getElementById('historyTrackList');
-        const recommendList = document.getElementById('recommendList');
-
-        if (!homeSection) {
-            console.error('home-section not found in loaded HTML!');
-            mainContentArea.innerHTML += '<p class="error-message">Thiếu #home-section trong home-content.html</p>';
-            return;
+        // Nếu không skip fetch nhưng đã có home-section thì không cần fetch lại (tránh ghi đè nội dung động)
+        const existingHomeSection = document.getElementById('home-section');
+        if (!skipFetch && !existingHomeSection) {
+            const homePath = window.getBaseUrl() + '/home-content.html';
+            console.log('Fetching home content from:', homePath);
+            const response = await fetch(homePath);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const htmlContent = await response.text();
+            mainContentArea.innerHTML = htmlContent;
+            console.log('home-content.html loaded into #mainContentArea');
+            // Chờ DOM cập nhật
+            await new Promise(resolve => setTimeout(resolve, 60));
+        } else if (!skipFetch) {
+            console.log('home-section already present – skipping second fetch');
+        } else {
+            console.log('skipFetch=true – using existing DOM markup');
         }
 
-        console.log('All home elements ready');
+        // Kiểm tra phần tử cần thiết sau khi đảm bảo DOM
+        const homeSection = document.getElementById('home-section');
+        if (!homeSection) {
+            throw new Error('home-section missing after load');
+        }
 
-        // LOAD DATA
-        await window.appFunctions.loadUserPlaylists();
-        await window.renderRecentHistory();
-        await window.renderRecommendations();
+        console.log('Home DOM ready – loading dynamic data...');
 
-        // HIỆN TRANG CHỦ
+        // LOAD DATA (song song để tối ưu thời gian)
+        const dataStart = performance.now();
+        await Promise.all([
+            window.appFunctions.loadUserPlaylists(),
+            window.renderRecentHistory(),
+            window.renderRecommendations()
+        ]);
+        const dataTime = (performance.now() - dataStart).toFixed(0);
+        console.log('All dynamic home data loaded in', dataTime, 'ms');
+
+        // Hiển thị trang chủ
         window.switchTab('home');
-
+        homePageLoaded = true;
+        window.dispatchEvent(new CustomEvent('APP_READY', { detail: { user: window.currentUser } }));
     } catch (error) {
         console.error('Lỗi loadHomePage:', error);
         homePageLoaded = false;
@@ -2179,7 +2183,7 @@ window.loadHomePage = async function() {
             <div class="error-message">
                 <h3>Không tải được trang chủ</h3>
                 <p>${error.message}</p>
-                <button onclick="window.loadHomePage()" class="btn-retry">Thử lại</button>
+                <button onclick="window.loadHomePage(false)" class="btn-retry">Thử lại</button>
             </div>
         `;
     }
@@ -2589,7 +2593,9 @@ async function initializeApp(user) {
 
     try {
         await updateProfileDisplay(user);
-        await window.loadHomePage();
+        // Gọi loadHomePage với skipFetch nếu DOM đã được inject sẵn bởi ui.js
+        const preInjected = !!document.getElementById('home-section');
+        await window.loadHomePage(preInjected);
         await window.switchTab('home');
         await loadUserPlaylists(true);
         if (!window.userSessionLoaded) {
@@ -2598,6 +2604,7 @@ async function initializeApp(user) {
         }
         window.appInitialized = true;
         console.log('✅ App fully initialized');
+        window.dispatchEvent(new CustomEvent('APP_READY', { detail: { user } }));
     } catch (error) {
         console.error('❌ App initialization failed:', error);
         showConnectionWarning?.();

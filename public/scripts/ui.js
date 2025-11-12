@@ -449,49 +449,45 @@ async function getNextTrackPreview() {
     return currentPlaylist[nextIndex] || null;
 }
 
-// THÊM FIX: Retry load home data sau components
-const tryLoadHome = async () => {  // Làm async để await getUser
-    console.log('🔧 ui.js retry check: currentUser?', !!window.currentUser, 'loadHomePage?', !!window.loadHomePage, 'user ID?', window.currentUser?.id);
-    
-    // FIX: Force restore user nếu chưa có (dùng getUser thay getSession cho fresh)
-    if (!window.currentUser && window.supabase) {
-        try {
-            console.log('🔄 ui.js: Force restoring user via getUser...');
-            const { data: { user }, error } = await window.supabase.auth.getUser();
-            if (error) {
-                console.error('❌ getUser failed:', error.message);
-            } else if (user) {
-                window.currentUser = user;
-                console.log('✅ ui.js: Forced user restore:', user.email, user.id);
-                // Dispatch event để trigger app.js listeners nếu cần
-                window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { detail: { session: { user } } }));
-            } else {
-                console.warn('⚠️ getUser returned no user - check token');
-            }
-        } catch (err) {
-            console.error('❌ Force getUser error:', err);
-        }
+// FIXED home loader: chờ session & init event thay vì tự fetch lại nhiều lần
+const tryLoadHome = async () => {
+    console.log('🔧 ui.js retry check:', {
+        hasUser: !!window.currentUser,
+        appInitialized: !!window.appInitialized,
+        loadHomePageFn: typeof window.loadHomePage === 'function'
+    });
+
+    // Nếu app đã init hoàn toàn → chỉ cần đảm bảo loadHomePage
+    if (window.appInitialized && window.currentUser) {
+        console.log('✅ ui.js: App initialized – invoking loadHomePage(skipFetch=true)');
+        await window.loadHomePage(true);
+        return;
     }
-    
-    if (window.currentUser && typeof window.loadHomePage === 'function') {
-        console.log('✅ ui.js: All ready - calling loadHomePage for user:', window.currentUser.id);
-        await window.loadHomePage();  // Await để chain full
-    } else if (window.currentUser && typeof loadHomeContent === 'function') {
-        console.warn('⚠️ loadHomePage not ready - fallback to partial loadHomeContent');
-        await loadHomeContent();  // Partial loads
-    } else {
-        // Retry max 15 lần (7.5s total)
-        if ((window.homeRetryCount || 0) < 15) {
+
+    // Nếu đã có user nhưng app chưa init thì đợi initializeApp kết thúc
+    if (window.currentUser && !window.appInitialized) {
+        console.log('⏳ ui.js: User present nhưng app chưa init – chờ APP_READY event');
+        return; // APP_READY listener sẽ lo
+    }
+
+    // Chưa có user → đợi session restore events
+    if (!window.currentUser) {
+        if ((window.homeRetryCount || 0) < 20) { // ~10s tổng
             window.homeRetryCount = (window.homeRetryCount || 0) + 1;
-            console.warn(`⏳ ui.js: Not ready (retry ${window.homeRetryCount}/15), waiting 500ms...`);
             setTimeout(tryLoadHome, 500);
         } else {
-            console.error('❌ ui.js: Max retries exceeded. Manual fixes:');
-            console.error('- Paste `supabase.auth.getUser().then(({data:{user}})=>{window.currentUser=user; window.loadHomePage();})` in console');
-            console.error('- Check localStorage token: `localStorage.getItem("sb-lezswjtnlsmznkgrzgmu-auth-token")`');
+            console.error('❌ ui.js: Timeout chờ user – kiểm tra token trong localStorage');
         }
     }
 };
+
+// Khi app init xong phát sự kiện, đảm bảo không double fetch
+window.addEventListener('APP_READY', (e) => {
+    console.log('🎉 APP_READY event received in ui.js for user:', e.detail?.user?.email);
+    if (!homePageLoaded && typeof window.loadHomePage === 'function') {
+        window.loadHomePage(true);
+    }
+});
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -517,8 +513,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.loadComponent(path('home-content.html'), 'mainContentArea')
         .then(success => {
             if (success) {
-                console.log('home-content.html loaded → starting tryLoadHome');
-                setTimeout(tryLoadHome, 100);
+                console.log('home-content.html loaded → starting tryLoadHome (optimized)');
+                setTimeout(tryLoadHome, 80);
             } else {
                 console.error('home-content.html failed → retrying tryLoadHome in 1s');
                 setTimeout(tryLoadHome, 1000);
