@@ -4,7 +4,7 @@
 /* Inline panel root (anchored in #playlistHeader) */
 .pl-inline-root { position: relative; width:100%; margin-top:18px; font-family: var(--font-family, system-ui); }
 .pl-inline-root .pl-modal { width:100%; max-width:100%; border:1px solid #262626; box-shadow:0 6px 24px -8px rgba(0,0,0,.55); }
-.pl-backdrop { position:absolute; inset:0; background:rgba(0,0,0,0.65); animation:plFade .25s ease; }
+.pl-backdrop { position:absolute; inset:0; background:rgba(0,0,0,0.72); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); animation:plFade .25s ease; }
 .pl-modal { position:relative; background:linear-gradient(180deg,#1b1b1b 0%, #141414 100%); color:#fff; width:840px; max-width:95%; border-radius:14px; padding:28px 28px 30px; box-shadow:0 18px 50px -12px rgba(0,0,0,.7); display:flex; flex-direction:column; animation:plPop .28s cubic-bezier(.25,.8,.25,1); }
 .pl-modal:focus { outline:none; }
 .pl-close { position:absolute; top:12px; right:14px; background:none; border:none; color:#ccc; font-size:22px; cursor:pointer; line-height:1; padding:4px; border-radius:6px; transition:background .15s, color .15s; }

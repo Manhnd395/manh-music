@@ -179,9 +179,8 @@ window.openPlaylistEditModal = async function(playlistId) {
         <div class="pl-modal" role="dialog" aria-modal="true" aria-label="Chỉnh sửa playlist">
             <button class="pl-close" aria-label="Đóng">✕</button>
             <div class="pl-grid">
-                <div class="pl-cover-wrapper" id="plCoverWrapper" title="Chọn ảnh bìa">
+                <div class="pl-cover-wrapper" id="plCoverWrapper" aria-label="Ảnh bìa (chỉnh ở khu vực Ảnh nền playlist)">
                     ${playlist.cover_url ? `<img id="plCoverPreview" src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" alt="Playlist cover" onerror="this.src='${defaultCover}'"/>` : `<div id="plCoverPreview" class="pl-cover-placeholder">No Image</div>`}
-                    <div class="pl-cover-overlay">Chọn ảnh</div>
                 </div>
                 <form id="playlistEditForm" class="pl-form" novalidate>
                     <div class="pl-row">
@@ -207,9 +206,7 @@ window.openPlaylistEditModal = async function(playlistId) {
                             </label>
                         </div>
                     </div>
-                    <!-- Hidden file input, triggered by clicking cover -->
-                    <input type="file" id="plCoverFile" accept="image/*" class="pl-file-hidden" aria-label="Chọn ảnh bìa" />
-                    <p class="pl-hint">Bạn xác nhận có quyền sử dụng ảnh tải lên.</p>
+                    <p class="pl-hint">Ảnh bìa chỉnh sửa trong phần "Ảnh nền playlist" ở trang chi tiết.</p>
                     <div class="pl-actions">
                         <button type="button" class="pl-btn pl-btn-secondary" id="plCancelBtn">Hủy</button>
                         <button type="submit" class="pl-btn pl-btn-primary" id="plSaveBtn">Lưu</button>
@@ -236,25 +233,7 @@ window.openPlaylistEditModal = async function(playlistId) {
     nameInput.addEventListener('input', () => nameCounter.textContent = `${nameInput.value.length}/80`);
     descInput.addEventListener('input', () => descCounter.textContent = `${descInput.value.length}/300`);
 
-    // Cover interactions
-    const fileInput = root.querySelector('#plCoverFile');
-    const coverWrapper = root.querySelector('#plCoverWrapper');
-    const coverPreview = root.querySelector('#plCoverPreview');
-    coverWrapper.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const url = URL.createObjectURL(file);
-            if (coverPreview.tagName === 'IMG') {
-                coverPreview.src = url;
-            } else {
-                const img = document.createElement('img');
-                img.src = url;
-                img.alt = 'Preview';
-                coverPreview.replaceWith(img);
-            }
-        }
-    });
+    // Không hỗ trợ chọn ảnh trong modal – giữ vùng ảnh bìa chỉ để hiển thị
 
     // Prevent global player shortcuts while typing inside the form
     root.addEventListener('keydown', (e) => {
