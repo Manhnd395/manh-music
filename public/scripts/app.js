@@ -1013,31 +1013,74 @@ window.renderRecentHistory = async function() {
 
 window.loadTopTracks = async function(limit = 10) {
     try {
-        const { data, error } = await supabase
+        // Ưu tiên dùng RPC nếu có (tổng lượt nghe toàn hệ thống, đã xử lý RLS qua SECURITY DEFINER)
+        try {
+            const { data: rpcData, error: rpcError } = await supabase
+                .rpc('get_top_tracks', { limit_count: limit });
+
+            if (!rpcError && Array.isArray(rpcData) && rpcData.length >= 0) {
+                return (rpcData || []).map(row => ({
+                    id: row.track_id || row.id,
+                    title: row.title,
+                    artist: row.artist,
+                    cover_url: row.cover_url,
+                    file_url: row.file_url,
+                    play_count: Number(row.total_play || row.play_count || 0)
+                }));
+            }
+        } catch (e) {
+            console.warn('RPC get_top_tracks unavailable, fallback to REST:', e?.message || e);
+        }
+
+        // Fallback A: Thử aggregate qua REST (có thể bị RLS hạn chế)
+        try {
+            const { data: aggData, error: aggError } = await supabase
+                .from('history')
+                .select(`
+                    track_id,
+                    total_play:play_count.sum(),
+                    tracks ( id, title, artist, cover_url, file_url )
+                `)
+                .order('total_play', { ascending: false })
+                .limit(limit);
+
+            if (!aggError && Array.isArray(aggData) && aggData.length) {
+                return aggData.map(row => ({
+                    ...row.tracks,
+                    play_count: Number(row.total_play || 0)
+                }));
+            }
+        } catch (e) {
+            console.warn('Aggregate select fallback failed:', e?.message || e);
+        }
+
+        // Fallback B: Top theo lịch sử của chính người dùng (nếu RLS không cho tổng)
+        const userId = window.currentUser?.id || null;
+        const { data: perUser, error: perUserErr } = await supabase
             .from('history')
             .select(`
                 track_id,
                 play_count,
-                tracks (
-                    id,
-                    title,
-                    artist,
-                    cover_url,
-                    file_url
-                )
+                tracks ( id, title, artist, cover_url, file_url )
             `)
+            .eq('user_id', userId)
             .order('play_count', { ascending: false })
             .limit(limit);
 
-        if (error) throw error;
-        const sorted = data
-            .sort((a, b) => (b.play_count || 0) - (a.play_count || 0))
-            .slice(0, limit);
+        if (perUserErr) throw perUserErr;
 
-        return sorted.map(item => ({
-            ...item.tracks,
-            play_count: item.play_count || 0
-        }));
+        // Loại trùng theo track_id
+        const distinct = [];
+        const seen = new Set();
+        for (const row of (perUser || [])) {
+            if (!seen.has(row.track_id)) {
+                seen.add(row.track_id);
+                distinct.push(row);
+            }
+            if (distinct.length >= limit) break;
+        }
+
+        return distinct.map(r => ({ ...r.tracks, play_count: Number(r.play_count || 0) }));
     } catch (error) {
         console.error('Lỗi tải top tracks:', error);
         return [];
@@ -1067,7 +1110,7 @@ window.renderRecommendations = async function() {
                 <img src="${t.cover_url && t.cover_url.trim() ? t.cover_url : defaultCover}" class="track-cover" onerror="if(!this._tried){this._tried=true;this.src='${defaultCover}';}">
                 <div class="track-details">
                     <div class="track-name">${escapeHtml(t.title)}</div>
-                    <div class="track-artist">${escapeHtml(t.artist)}</div>
+                    <div class="track-artist">${escapeHtml(t.artist)} · <span title="Tổng lượt nghe">${(t.play_count ?? 0).toLocaleString()} lượt nghe</span></div>
                 </div>
             </div>
             <div class="track-actions">
