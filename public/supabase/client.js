@@ -239,29 +239,22 @@ async function manualApiCapture(accessToken, refreshToken) {
         
         let session = null;
         
-        // Gọi getSession trước
-        const { data, error } = await supabase.auth.getSession();
-        session = data?.session ?? null;
-        console.log('client.js getSession result:', session?.user?.email ?? null, error ?? null);
-        
-        // Nếu có data trong storage nhưng getSession trả về null, force restore
-        if (!session && storedData) {
-            console.log('🔧 Force restoring session from localStorage...');
+        // SKIP getSession() - nó hay bị hang!
+        // Nếu có data trong localStorage → parse trực tiếp
+        if (storedData) {
+            console.log('🔧 Restoring session directly from localStorage...');
             try {
                 const parsedSession = JSON.parse(storedData);
-                if (parsedSession.access_token && parsedSession.refresh_token) {
-                    console.log('🔄 Calling setSession with stored tokens...');
-                    const { data: restoredData, error: restoreError } = await supabase.auth.setSession({
-                        access_token: parsedSession.access_token,
-                        refresh_token: parsedSession.refresh_token
-                    });
+                
+                // Validate session data
+                if (parsedSession.access_token && parsedSession.user) {
+                    console.log('✅ Valid session found in localStorage:', parsedSession.user.email);
+                    session = parsedSession;
                     
-                    if (restoredData?.session) {
-                        console.log('✅ Session restored from localStorage:', restoredData.session.user.email);
-                        session = restoredData.session;
-                    } else if (restoreError) {
-                        console.error('❌ Failed to restore session:', restoreError);
-                    }
+                    // Set current user IMMEDIATELY without waiting for SDK
+                    window.currentUser = parsedSession.user;
+                } else {
+                    console.warn('⚠️ Invalid session format in localStorage');
                 }
             } catch (parseError) {
                 console.error('❌ Failed to parse stored session:', parseError);
@@ -273,20 +266,14 @@ async function manualApiCapture(accessToken, refreshToken) {
             console.log('✅ Client session restored & dispatched:', session.user.email);
             cleanupOAuthParams();
             
-            // Force refresh session nếu cần (cho token expire hoặc stale)
+            // Check token expiry nhưng KHÔNG auto-refresh (vì SDK methods hang)
             const now = Math.floor(Date.now() / 1000);
-            if (session.expires_at < now + 300) {  // Nếu expire trong 5 phút
-                console.log('🔄 Token near expiry - refreshing session');
-                const { data: { session: refreshed }, error: refreshErr } = await supabase.auth.refreshSession({ refresh_token: session.refresh_token });
-                if (refreshErr) {
-                    console.error('❌ Refresh failed:', refreshErr);
-                    // Clear nếu fail
-                    localStorage.removeItem('sb-lezswjtnlsmznkgrzgmu-auth-token');
-                } else if (refreshed?.user) {
-                    window.currentUser = refreshed.user;
-                    console.log('🔄 Client session refreshed:', refreshed.user.email);
-                    session = refreshed;  // Update cho dispatch
-                }
+            if (session.expires_at && session.expires_at < now) {
+                console.warn('⚠️ Token expired - user needs to re-login');
+                localStorage.removeItem(storageKey);
+                window.currentUser = null;
+            } else if (session.expires_at && session.expires_at < now + 300) {
+                console.warn('⚠️ Token near expiry - may need refresh soon');
             }
             
             // Quick RLS test: Check nếu user có thể query self (verify auth/RLS)
