@@ -142,8 +142,13 @@ window.toggleEditPlaylist = function() {
 
 // Create / open modal
 window.openPlaylistEditModal = async function(playlistId) {
-    // Remove any existing editor blocks (inline or overlay)
-    document.querySelectorAll('#playlistEditPanel, #playlistEditModal').forEach(el => el.remove());
+    // Remove legacy inline panel if present and prevent duplicates
+    document.getElementById('playlistEditPanel')?.remove();
+    const existing = document.getElementById('playlistEditModal');
+    if (existing) {
+        existing.querySelector('#plName')?.focus();
+        return; // singleton
+    }
 
     const { data: playlist, error } = await supabase
         .from('playlists')
@@ -165,11 +170,13 @@ window.openPlaylistEditModal = async function(playlistId) {
         document.head.appendChild(link);
     }
 
-    const panel = document.createElement('div');
-    panel.id = 'playlistEditPanel';
-    panel.className = 'pl-inline-root';
-    panel.innerHTML = `
-        <div class="pl-modal" role="group" aria-label="Chỉnh sửa playlist">
+    // Create overlay modal like Spotify
+    const root = document.createElement('div');
+    root.id = 'playlistEditModal';
+    root.className = 'pl-modal-root';
+    root.innerHTML = `
+        <div class="pl-backdrop" tabindex="-1" aria-hidden="false"></div>
+        <div class="pl-modal" role="dialog" aria-modal="true" aria-label="Chỉnh sửa playlist">
             <button class="pl-close" aria-label="Đóng">✕</button>
             <div class="pl-grid">
                 <div class="pl-cover-wrapper" id="plCoverWrapper" title="Chọn ảnh bìa">
@@ -211,30 +218,28 @@ window.openPlaylistEditModal = async function(playlistId) {
             </div>
         </div>`;
 
-    const header = document.getElementById('playlistHeader');
-    if (header) header.appendChild(panel); else document.body.appendChild(panel);
+    document.body.appendChild(root);
+    setTimeout(() => root.querySelector('#plName')?.focus(), 30);
 
-    // Focus for accessibility
-    setTimeout(() => panel.querySelector('#plName')?.focus(), 30);
-
-    // Event handlers
-    const closePanel = () => panel.remove();
-    panel.querySelector('.pl-close')?.addEventListener('click', closePanel);
-    panel.querySelector('#plCancelBtn')?.addEventListener('click', closePanel);
-    panel.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closePanel(); } });
+    // Close helpers
+    const closeModal = () => root.remove();
+    root.querySelector('.pl-backdrop')?.addEventListener('click', closeModal);
+    root.querySelector('.pl-close')?.addEventListener('click', closeModal);
+    root.querySelector('#plCancelBtn')?.addEventListener('click', closeModal);
+    root.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
 
     // Live counters
-    const nameInput = panel.querySelector('#plName');
-    const descInput = panel.querySelector('#plDesc');
-    const nameCounter = panel.querySelector('#plNameCounter');
-    const descCounter = panel.querySelector('#plDescCounter');
+    const nameInput = root.querySelector('#plName');
+    const descInput = root.querySelector('#plDesc');
+    const nameCounter = root.querySelector('#plNameCounter');
+    const descCounter = root.querySelector('#plDescCounter');
     nameInput.addEventListener('input', () => nameCounter.textContent = `${nameInput.value.length}/80`);
     descInput.addEventListener('input', () => descCounter.textContent = `${descInput.value.length}/300`);
 
     // Cover interactions
-    const fileInput = panel.querySelector('#plCoverFile');
-    const coverWrapper = panel.querySelector('#plCoverWrapper');
-    const coverPreview = panel.querySelector('#plCoverPreview');
+    const fileInput = root.querySelector('#plCoverFile');
+    const coverWrapper = root.querySelector('#plCoverWrapper');
+    const coverPreview = root.querySelector('#plCoverPreview');
     coverWrapper.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -252,7 +257,7 @@ window.openPlaylistEditModal = async function(playlistId) {
     });
 
     // Prevent global player shortcuts while typing inside the form
-    panel.addEventListener('keydown', (e) => {
+    root.addEventListener('keydown', (e) => {
         const t = e.target;
         const tag = t?.tagName?.toUpperCase();
         if (tag === 'INPUT' || tag === 'TEXTAREA' || t?.isContentEditable) {
@@ -261,7 +266,7 @@ window.openPlaylistEditModal = async function(playlistId) {
     });
 
     // Submit
-    panel.querySelector('#playlistEditForm').addEventListener('submit', (e) => {
+    root.querySelector('#playlistEditForm').addEventListener('submit', (e) => {
         e.preventDefault();
         window.savePlaylistModal(playlist.id);
     });
@@ -289,6 +294,7 @@ window.savePlaylistModal = async function(playlistId) {
                 const { error } = await supabase.from('playlists').update(updates).eq('id', playlistId);
                 if (error) throw error;
                 document.getElementById('playlistEditPanel')?.remove();
+                document.getElementById('playlistEditModal')?.remove();
                 await window.loadDetailPlaylist(playlistId);
                 await window.appFunctions.loadUserPlaylists(true);
                 alert('Đã lưu playlist');

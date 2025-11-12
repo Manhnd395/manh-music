@@ -1091,7 +1091,10 @@ window.renderRecommendations = async function() {
 // Hiển thị playlist công khai ở Home (nếu có cờ is_public)
 window.renderPublicPlaylists = async function(limit = 12) {
     const container = document.getElementById('publicPlaylistGrid');
-    if (!container) return; // chỉ vẽ nếu có vùng này trong home-content.html
+    if (!container) {
+        console.warn('[Public] Grid container #publicPlaylistGrid not found. Skip render.');
+        return; // chỉ vẽ nếu có vùng này trong home-content.html
+    }
     container.innerHTML = '<p>Đang tải playlist công khai...</p>';
     try {
         const { data: playlists, error } = await supabase
@@ -1101,6 +1104,7 @@ window.renderPublicPlaylists = async function(limit = 12) {
             .order('created_at', { ascending: false })
             .limit(limit);
         if (error) throw error;
+        console.log(`[Public] Loaded public playlists: ${playlists ? playlists.length : 0}`);
         if (!playlists || playlists.length === 0) {
             container.innerHTML = '<p class="empty-message">Chưa có playlist công khai.</p>';
             return;
