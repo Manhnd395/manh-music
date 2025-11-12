@@ -26,7 +26,8 @@ let cachedMyUploads = null;
 let recommendationsLoaded = false;
 
 let initializationInProgress = false;
-let appInitialized = false; // Changed from homePageLoaded to be more accurate
+let appInitialized = false; // Unified initialization flag
+let homePageLoaded = false; // Add missing flag referenced later
 
 let isTransitioning = false;
 let recentlyPaused = false;
@@ -2205,11 +2206,11 @@ window.loadHomePage = async function(skipFetch = false) {
 
         // Hiển thị trang chủ
         window.switchTab('home');
-        homePageLoaded = true;
+    homePageLoaded = true;
         window.dispatchEvent(new CustomEvent('APP_READY', { detail: { user: window.currentUser } }));
     } catch (error) {
         console.error('Lỗi loadHomePage:', error);
-        homePageLoaded = false;
+    homePageLoaded = false;
         mainContentArea.innerHTML = `
             <div class="error-message">
                 <h3>Không tải được trang chủ</h3>

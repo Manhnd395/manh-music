@@ -26,18 +26,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const handleAuthChangeEvent = (event, session) => {
         console.log(`Auth.js: Handling event ${event}`, session);
         const user = session?.user || null;
-        
-        // Avoid overwriting a valid user with null if events are out of order
-        if (user || !window.currentUser) {
+
+        // Do not demote an existing signed-in user to null unless event is SIGNED_OUT
+        if (event === 'SIGNED_OUT') {
+            window.currentUser = null;
+        } else if (user) {
             window.currentUser = user;
         }
 
-        // Dispatch a single, consistent event for the app to listen to
         document.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', {
             detail: { event, session }
         }));
 
-        checkRedirect();
+        // Delay redirect slightly to allow other listeners (e.g., initializeApp) to attach
+        setTimeout(checkRedirect, 20);
     };
 
     // This is our primary listener for live auth changes (login, logout)
@@ -69,17 +71,23 @@ function checkRedirect() {
     const user = window.currentUser;
     const basePath = getBasePath();
     const currentPath = window.location.pathname;
-    const isAuthPage = currentPath === `${basePath}` || currentPath.endsWith('/index.html') || currentPath.includes('signup.html');
+    const isAuthPage = currentPath === basePath || currentPath.endsWith('/index.html') || currentPath.includes('signup.html');
     const isPlayerPage = currentPath.includes('player.html');
+
+    // Guard: avoid bouncing if initialization is in progress
+    if (window.initializationInProgress) {
+        console.log('Auth.js: Initialization in progress, skip redirect check');
+        return;
+    }
 
     if (!user && isPlayerPage) {
         console.log('Auth.js: No user on player page, redirecting to login.');
-        window.location.href = basePath;
+        window.location.replace(basePath + 'index.html');
     } else if (user && isAuthPage) {
-        console.log('Auth.js: User is logged in and on auth page, redirecting to player.');
-        window.location.href = `${basePath}player.html`;
+        console.log('Auth.js: User logged in on auth page, redirecting to player.');
+        window.location.replace(basePath + 'player.html');
     } else {
-        console.log('Auth.js: Auth state is consistent with current page.');
+        console.log('Auth.js: Auth state consistent.');
     }
 }
 
@@ -512,26 +520,7 @@ async function logout() {
     }
 }
 
-supabase.auth.onAuthStateChange((event, session) => {
-    console.log('AUTH STATE CHANGED:', event, session?.user?.email || 'no user');
-
-    if (event === 'SIGNED_IN' && session?.user) {
-        window.currentUser = session.user;
-        // Tự động redirect nếu đang ở index.html
-        if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
-            const basePath = getBasePath();
-            window.location.href = basePath + 'player.html';
-        }
-        // Dispatch để sync
-        window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { detail: { event, session } }));
-    }
-
-    if (event === 'SIGNED_OUT') {
-        window.currentUser = null;
-        const basePath = getBasePath();
-        window.location.href = basePath + 'index.html';
-    }
-});
+// Remove second onAuthStateChange to avoid double handling; rely on the one inside DOMContentLoaded.
 
 window.authFunctions = {
     signup,
