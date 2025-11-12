@@ -95,6 +95,29 @@
           console.error('Auth functions not loaded properly');
         }
 
+        // Check for error params in URL (e.g., from email confirmation)
+        const urlParams = new URLSearchParams(window.location.search);
+        const errorCode = urlParams.get('error_code');
+        const errorDesc = urlParams.get('error_description');
+        
+        if (errorCode || errorDesc) {
+          console.error('URL Error:', errorCode, errorDesc);
+          
+          let userMessage = 'Có lỗi xảy ra. ';
+          if (errorCode === 'otp_expired') {
+            userMessage = '⚠️ Link xác nhận email đã hết hạn. Vui lòng đăng ký lại hoặc yêu cầu gửi lại email xác nhận.';
+          } else if (errorDesc) {
+            userMessage += decodeURIComponent(errorDesc.replace(/\+/g, ' '));
+          }
+          
+          // Show error message to user
+          alert(userMessage);
+          
+          // Clean URL by removing error params
+          const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
+          window.history.replaceState({}, '', cleanUrl);
+        }
+
         const hash = window.location.hash || '';
         const hasToken = OAUTH_PATTERN.test(hash);
 
