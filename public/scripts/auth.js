@@ -62,9 +62,23 @@ document.addEventListener('DOMContentLoaded', async function() {
                 return;
             }
         } else {
+            // Fallback: if client.js already restored into window.currentUser, treat as signed-in
+            if (window.currentUser?.id) {
+                console.log('Session available via window.currentUser; skipping redirect');
+                const fakeSession = { user: window.currentUser };
+                window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { detail: { session: fakeSession } }));
+                window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { detail: { event: 'INITIAL_SESSION', session: fakeSession } }));
+                return;
+            }
+
             console.warn('No session - show login form');
             if (currentPath.includes('player.html')) {
-                window.location.href = basePath + 'index.html';
+                // Give client.js a brief chance to finish restoring before redirecting
+                setTimeout(() => {
+                    if (!window.currentUser?.id) {
+                        window.location.href = basePath + 'index.html';
+                    }
+                }, 1200);
             }
         }
     } catch (err) {
