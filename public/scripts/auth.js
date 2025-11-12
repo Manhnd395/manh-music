@@ -192,16 +192,12 @@ async function signup() {
             return;
         }
 
-        // Get base path for email confirmation redirect
-        const basePath = getBasePath();
-        const redirectUrl = `${window.location.origin}${basePath}index.html`;
-        console.log('📧 Email confirmation will redirect to:', redirectUrl);
+        console.log('📝 Signing up user (email confirmation disabled)...');
         
         const { data, error } = await supabase.auth.signUp({ 
             email, 
             password,
             options: {
-                emailRedirectTo: redirectUrl,
                 data: {
                     username: username,
                     birthday: birthday
@@ -250,8 +246,8 @@ async function signup() {
             console.log('✅ Users table populated');
         }
 
-        alert('Đăng ký thành công! Vui lòng kiểm tra email để xác nhận và đăng nhập.');
-        // basePath already declared at line 196, reuse it
+        const basePath = getBasePath();
+        alert('Đăng ký thành công! Bạn có thể đăng nhập ngay.');
         window.location.href = basePath + 'index.html';
         return;
 
