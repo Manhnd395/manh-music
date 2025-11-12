@@ -484,7 +484,8 @@ const tryLoadHome = async () => {
 // Khi app init xong phát sự kiện, đảm bảo không double fetch
 window.addEventListener('APP_READY', (e) => {
     console.log('🎉 APP_READY event received in ui.js for user:', e.detail?.user?.email);
-    if (!homePageLoaded && typeof window.loadHomePage === 'function') {
+    // Không tham chiếu biến cục bộ trong app.js để tránh ReferenceError
+    if (typeof window.loadHomePage === 'function') {
         window.loadHomePage(true);
     }
 });
