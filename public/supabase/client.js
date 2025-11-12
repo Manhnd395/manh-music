@@ -237,8 +237,15 @@ async function manualApiCapture(accessToken, refreshToken) {
             dataLength: storedData?.length || 0
         });
         
-        // Nếu có data trong storage nhưng SDK không detect, force restore
-        if (storedData && !session) {
+        let session = null;
+        
+        // Gọi getSession trước
+        const { data, error } = await supabase.auth.getSession();
+        session = data?.session ?? null;
+        console.log('client.js getSession result:', session?.user?.email ?? null, error ?? null);
+        
+        // Nếu có data trong storage nhưng getSession trả về null, force restore
+        if (!session && storedData) {
             console.log('🔧 Force restoring session from localStorage...');
             try {
                 const parsedSession = JSON.parse(storedData);
@@ -260,10 +267,6 @@ async function manualApiCapture(accessToken, refreshToken) {
                 console.error('❌ Failed to parse stored session:', parseError);
             }
         }
-        
-        const { data, error } = await supabase.auth.getSession();
-        session = data?.session ?? session; // Use restored session if getSession returns null
-        console.log('client.js getSession result:', session?.user?.email ?? null, error ?? null);
         
         if (session?.user) {
             window.currentUser = session.user;
