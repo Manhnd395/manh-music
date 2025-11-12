@@ -19,78 +19,71 @@ function getBasePath() {
     return '/';
 }
 
-document.addEventListener('DOMContentLoaded', async function() {
-    const currentPath = window.location.pathname;
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Auth.js: DOMContentLoaded');
+
+    // Centralized event handler
+    const handleAuthChangeEvent = (event, session) => {
+        console.log(`Auth.js: Handling event ${event}`, session);
+        const user = session?.user || null;
+        
+        // Avoid overwriting a valid user with null if events are out of order
+        if (user || !window.currentUser) {
+            window.currentUser = user;
+        }
+
+        // Dispatch a single, consistent event for the app to listen to
+        document.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', {
+            detail: { event, session }
+        }));
+
+        checkRedirect();
+    };
+
+    // This is our primary listener for live auth changes (login, logout)
+    supabase.auth.onAuthStateChange((event, session) => {
+        console.log(`Auth.js: onAuthStateChange event: ${event}`, session);
+        // We trust onAuthStateChange as the source of truth for live events
+        handleAuthChangeEvent(event, session);
+    });
+
+    // This listener handles the initial, fast session restoration from client.js
+    window.addEventListener('SUPABASE_SESSION_RESTORED', (e) => {
+        console.log('Auth.js: Received SUPABASE_SESSION_RESTORED');
+        // We treat the restored session as the initial session state
+        handleAuthChangeEvent('INITIAL_SESSION', e.detail.session);
+    });
+
+    // Initial check for pages that might not have a user
+    // This helps redirect from protected pages if the session restoration is slow
+    setTimeout(() => {
+        checkRedirect();
+    }, 50);
+
+
+    // Attach listeners to forms
+    attachFormListeners();
+});
+
+function checkRedirect() {
+    const user = window.currentUser;
     const basePath = getBasePath();
-    console.log('Auth.js checking path:', currentPath);
-    
-    // Nếu có OAuth tokens trong URL, đợi event từ client.js thay vì gọi getSession ngay
-    const hasOAuthTokens = /access_token=|refresh_token=|code=/.test(window.location.hash + window.location.search);
-    
-    if (hasOAuthTokens) {
-        console.log('⏳ OAuth callback detected, waiting for SUPABASE_SESSION_RESTORED event...');
-        // Không gọi getSession, chỉ đợi event
-        // Event sẽ được fire từ client.js sau khi Supabase xử lý xong
-        return;
+    const currentPath = window.location.pathname;
+    const isAuthPage = currentPath === `${basePath}` || currentPath.endsWith('/index.html') || currentPath.includes('signup.html');
+    const isPlayerPage = currentPath.includes('player.html');
+
+    if (!user && isPlayerPage) {
+        console.log('Auth.js: No user on player page, redirecting to login.');
+        window.location.href = basePath;
+    } else if (user && isAuthPage) {
+        console.log('Auth.js: User is logged in and on auth page, redirecting to player.');
+        window.location.href = `${basePath}player.html`;
+    } else {
+        console.log('Auth.js: Auth state is consistent with current page.');
     }
+}
 
-    try {
-        console.log('Supabase client:', supabase);
-        console.log('Supabase client keys:', Object.keys(supabase || {}));
-        const withTimeout = (promise, ms) => Promise.race([
-            promise,
-            new Promise((resolve) => setTimeout(() => resolve({ data: { session: null }, error: new Error('getSession timeout') }), ms))
-        ]);
-        console.log('Auth.js: Restoring session via getSession...');
-        const { data: { session }, error } = await withTimeout(supabase.auth.getSession(), 8000);
-        console.log('Auth.js: Session object:', session);
-        if (error && error.message !== 'getSession timeout') throw error;
-        if (error && error.message === 'getSession timeout') {
-            console.warn('getSession timeout – waiting for auth events');
-        }
-
-        if (session?.user) {
-            window.currentUser = session.user;
-            console.log('Session restored:', session.user.email);
-
-            window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { detail: { session } }));
-            window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { detail: { event: 'INITIAL_SESSION', session } }));
-
-            // Redirect nếu đang ở login/signup
-            if (currentPath === '/' || currentPath.endsWith(basePath) || currentPath.includes('index.html') || currentPath.includes('signup.html')) {
-                window.location.href = basePath + 'player.html';
-                return;
-            }
-        } else {
-            // Fallback: if client.js already restored into window.currentUser, treat as signed-in
-            if (window.currentUser?.id) {
-                console.log('Session available via window.currentUser; skipping redirect');
-                const fakeSession = { user: window.currentUser };
-                window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { detail: { session: fakeSession } }));
-                window.dispatchEvent(new CustomEvent('SUPABASE_AUTH_CHANGE', { detail: { event: 'INITIAL_SESSION', session: fakeSession } }));
-                return;
-            }
-
-            console.warn('No session - show login form');
-            if (currentPath.includes('player.html')) {
-                // Give client.js a brief chance to finish restoring before redirecting
-                setTimeout(() => {
-                    if (!window.currentUser?.id) {
-                        window.location.href = basePath + 'index.html';
-                    }
-                }, 1200);
-            }
-        }
-    } catch (err) {
-        console.error('Session restore error:', err); // BÂY GIỜ SẼ LOG
-        if (currentPath.includes('player.html')) {
-            window.location.href = basePath + 'index.html';
-        }
-    }
-
-    // PHẦN GẮN LISTENER SẼ CHẠY SAU KHI XỬ LÝ SESSION
-    console.log('DOM fully loaded, searching for forms...');
-
+function attachFormListeners() {
     // Gắn listener signup
     const signupForm = document.getElementById('signupForm');
     if (signupForm) {

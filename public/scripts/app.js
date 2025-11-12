@@ -26,7 +26,7 @@ let cachedMyUploads = null;
 let recommendationsLoaded = false;
 
 let initializationInProgress = false;
-let homePageLoaded = false;
+let appInitialized = false; // Changed from homePageLoaded to be more accurate
 
 let isTransitioning = false;
 let recentlyPaused = false;
@@ -34,78 +34,82 @@ window.isPlaying = isPlaying;
 window.currentUser = window.currentUser || null;
 
 window.appFunctions = window.appFunctions || {};
-// window.appFunctions.getCurrentUserId = async () => window.currentUser?.id || null;
 
-// Use direct Supabase URL for default cover
 const FALLBACK_COVER = 'https://lezswjtnlsmznkgrzgmu.supabase.co/storage/v1/object/public/cover/449bd474-7a51-4c22-b4a4-2ad8736d6fad/default-cover.webp';
 console.log('FALLBACK_COVER Supabase URL in use:', FALLBACK_COVER);
 
 window.currentPlaylists = window.currentPlaylists || {};
 
-async function onSupabaseSessionRestored(e) {
-  const session = e?.detail?.session;
-  console.log('SUPABASE_SESSION_RESTORED received in app.js:', !!session?.user, session?.user?.email ?? null);
+// Centralized initialization logic
+async function initializeApp(user) {
+    if (appInitialized || initializationInProgress) {
+        console.log('App already initialized or in progress. Skipping.');
+        // If home page isn't loaded, try loading it. This can happen on re-authentication.
+        if (document.getElementById('mainContentArea') && !document.getElementById('home-grid')) {
+             console.log("Re-initializing, home content not found, loading it now.");
+             await loadHomePage(true); // skipFetch = true to use cache
+        }
+        return;
+    }
+    console.log(`🚀 Initializing app for user: ${user.email}`);
+    initializationInProgress = true;
 
-  // Nếu có session => initialize app
-  if (session?.user) {
-    window.currentUser = session.user;
     try {
-      // tránh double init
-      if (!window.appInitialized && !window.initializationInProgress) {
-        await initializeApp(session.user);
-        window.appInitialized = true;
-      } else {
-        console.log('App already initialized or in progress; skipping initializeApp');
-      }
-    } catch (err) {
-      console.error('Error initializing app after session restored:', err);
+        await Promise.all([
+            loadHomePage(false), // Fetch fresh data on first load
+            testSupabaseConnection()
+        ]);
+
+        console.log('✅ App initialized successfully.');
+        appInitialized = true;
+        document.dispatchEvent(new CustomEvent('APP_READY', { detail: { user } }));
+
+    } catch (error) {
+        console.error('💥 CRITICAL: App initialization failed:', error);
+        // Optionally, show an error message to the user
+    } finally {
+        initializationInProgress = false;
     }
-  } else {
-    console.warn('No session after restore - redirecting to login if on protected page');
-    // Nếu đang ở player.html và không có session thì redirect
-    if (window.location.pathname.includes('player.html')) {
-        const redirectUrl = window.location.origin + '/manh-music/index.html';
-        console.log('Redirecting to login:', redirectUrl);
-        window.location.href = redirectUrl;
-    }
-  }
 }
 
-// Lắng nghe event phát từ client.js
-window.addEventListener('SUPABASE_SESSION_RESTORED', onSupabaseSessionRestored);
-
-// Ngoài ra lắng nghe auth changes (ví dụ sau khi SIGNED_IN xảy ra)
+// Listen for the single source of truth for auth changes
 window.addEventListener('SUPABASE_AUTH_CHANGE', async (e) => {
-  const { event, session } = e.detail || {};
-  console.log('SUPABASE_AUTH_CHANGE in app.js:', event, session?.user?.email ?? null);
-  if (event === 'SIGNED_IN' && session?.user) {
-    window.currentUser = session.user;
-    // Khởi tạo hoặc reinit app
-    await initializeApp(session.user);
-    window.appInitialized = true;
-  } else if (event === 'SIGNED_OUT') {
-    // cleanup
-    resetAllCaches?.();
-  }
+    const { event, session } = e.detail || {};
+    console.log(`APP.JS: Received SUPABASE_AUTH_CHANGE, event: ${event}`, session?.user?.email);
+
+    if (session?.user) {
+        window.currentUser = session.user;
+        await initializeApp(session.user);
+    } else {
+        // Handle sign-out
+        window.currentUser = null;
+        appInitialized = false; // Reset for next login
+        console.log("User signed out, app state reset.");
+        // The checkRedirect in auth.js will handle navigation
+    }
 });
 
-// Global fallback cho session events
-window.addEventListener('load', () => {
-    if (!window.currentUser && window.supabase) {
-        console.log('🔄 App.js load fallback: Checking session');
-        window.supabase.auth.getUser().then(({ data: { user } }) => {
-            if (user && !window.currentUser) {
-                window.currentUser = user;
-                console.log('✅ App.js fallback user set:', user.id);
-                initializeApp(user);
+// Fallback check on page load, in case events are missed
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('APP.JS: DOMContentLoaded');
+    setTimeout(async () => {
+        if (!appInitialized && !initializationInProgress) {
+            console.log('APP.JS: Fallback check - app not initialized. Checking session.');
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                console.log('APP.JS: Fallback found user, initializing.');
+                window.currentUser = session.user;
+                await initializeApp(session.user);
+            } else {
+                console.log('APP.JS: Fallback found no user.');
             }
-        });
-    }
+        }
+    }, 1000); // Delay to give primary event flow a chance
 });
 
 
 window.addEventListener('beforeunload', () => {
-    // Reset tất cả cache flags
+    // Reset all cache flags
     cachedPlaylists = null;
     cachedHistoryTracks = null;
     cachedRecommendedTracks = null;
@@ -171,27 +175,25 @@ if (window.location.hostname === 'localhost') {
     });
 }
 
-supabase.auth.getSession().then(({ data: { session }, error }) => {
-    if (!window.currentUser) {
-        console.log('🔄 App.js: Force retry getSession after 500ms');
-        setTimeout(() => {
-            supabase.auth.getSession().then(({ data: { session }, error }) => {
-                console.log('🔄 Force getSession result:', !!session?.user, session?.user?.email || 'null');
-                if (session?.user && !window.currentUser) {
-                    window.currentUser = session.user;
-                    console.log('✅ App.js force session restored:', session.user.email);
-                    // Manual trigger init nếu DOM ready
-                    if (document.readyState === 'complete' && typeof initializeApp === 'function') {
-                        initializeApp(session.user);
-                    }
-                } else if (error) {
-                    console.error('Force getSession error:', error);
-                    localStorage.removeItem('sb-lezswjtnlsmznkgrzgmu-auth-token');  // Clear corrupt
-                }
-            });
-        }, 500);
+async function testSupabaseConnection() {
+    console.log('🧪 Testing Supabase connection...');
+    const start = Date.now();
+    try {
+        // A lightweight query to test authentication and RLS
+        const { data, error } = await supabase.from('profiles').select('id').limit(1);
+        const duration = Date.now() - start;
+        if (error) {
+            console.error(`🧪 Supabase connection test failed in ${duration}ms.`, error);
+            return false;
+        }
+        console.log(`✅ Supabase connection test successful in ${duration}ms.`);
+        return true;
+    } catch (err) {
+        const duration = Date.now() - start;
+        console.error(`💥 Supabase connection test threw an exception in ${duration}ms.`, err);
+        return false;
     }
-}).catch(err => console.error('Force getSession failed:', err));
+}
 
 function togglePlayPause() {
     console.log('🎵 togglePlayPause called, current state:', {
