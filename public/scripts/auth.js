@@ -192,10 +192,16 @@ async function signup() {
             return;
         }
 
+        // Get base path for email confirmation redirect
+        const basePath = getBasePath();
+        const redirectUrl = `${window.location.origin}${basePath}index.html`;
+        console.log('📧 Email confirmation will redirect to:', redirectUrl);
+        
         const { data, error } = await supabase.auth.signUp({ 
             email, 
             password,
             options: {
+                emailRedirectTo: redirectUrl,
                 data: {
                     username: username,
                     birthday: birthday
