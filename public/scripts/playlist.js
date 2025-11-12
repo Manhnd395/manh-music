@@ -230,81 +230,7 @@ window.savePlaylistModal = async function(playlistId) {
                 console.error('Lỗi lưu playlist:', err);
                 alert('Lỗi: ' + err.message);
         }
-};
-    const formId = `editPlaylistForm-${playlistId}`;
-    const form = document.getElementById(formId);
-    const editBtn = document.querySelector(`.edit-playlist-btn[onclick*="toggleEditPlaylist('${playlistId}'"]`);  // Selector động
-    
-    if (!form || !editBtn) return console.error('Không tìm thấy form/edit btn');
 
-    if (form.classList.contains('active')) {
-        // Cancel
-        form.classList.remove('active');
-        editBtn.textContent = 'Chỉnh sửa';
-    } else {
-        // Start edit
-        document.getElementById(`editName-${playlistId}`).value = currentName || '';
-        document.getElementById(`editDesc-${playlistId}`).value = currentDesc || '';
-        document.getElementById(`editColor-${playlistId}`).value = currentColor || '#1db954';
-        form.classList.add('active');
-        editBtn.textContent = 'Hủy';
-        
-        // ← FIX: Cover input & preview (hoàn chỉnh)
-        let coverSection = form.querySelector('.cover-section');
-        if (!coverSection) {
-            coverSection = document.createElement('div');
-            coverSection.className = 'cover-section';
-            coverSection.innerHTML = `
-                <label for="editCover-${playlistId}">Ảnh nền (tùy chọn):</label>
-                <input type="file" id="editCover-${playlistId}" accept="image/*">
-                ${currentCover ? `<img src="${getPublicPlaylistCoverUrl(currentCover)}" alt="Current Cover" style="width: 60px; height: 60px; object-fit: cover; margin-top: 5px; border-radius: 4px;"><button type="button" class="btn-delete-cover" onclick="window.deletePlaylistCover('${playlistId}')">Xóa ảnh</button>` : ''}
-            `;
-            form.appendChild(coverSection);
-        }
-
-        // Thêm drag & drop cho danh sách bài hát
-        const sortableList = form.querySelector(`#sortableTracks-${playlistId}`);
-        if (sortableList) {
-            // Lấy lại danh sách track hiện tại
-            const tracks = window.currentPlaylist || [];
-            sortableList.innerHTML = '';
-            tracks.forEach((track, idx) => {
-                const li = document.createElement('li');
-                li.className = 'sortable-track-item';
-                li.draggable = true;
-                li.dataset.trackId = track.id;
-                li.style.padding = '6px 10px';
-                li.style.border = '1px solid #333';
-                li.style.marginBottom = '4px';
-                li.style.background = '#181818';
-                li.innerHTML = `<span style='cursor:move;margin-right:8px;'>☰</span> ${escapeHtml(track.title)} <small style='color:#aaa;'>${escapeHtml(track.artist)}</small>`;
-                sortableList.appendChild(li);
-            });
-
-            // Drag & drop logic
-            let dragSrcEl = null;
-            sortableList.addEventListener('dragstart', function(e) {
-                dragSrcEl = e.target;
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/html', dragSrcEl.outerHTML);
-                dragSrcEl.classList.add('dragElem');
-            });
-            sortableList.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                const target = e.target.closest('li');
-                if (target && target !== dragSrcEl) {
-                    sortableList.insertBefore(dragSrcEl, target.nextSibling);
-                }
-            });
-            sortableList.addEventListener('drop', function(e) {
-                e.stopPropagation();
-                dragSrcEl.classList.remove('dragElem');
-                dragSrcEl = null;
-            });
-        }
-    }
-};
 
 // Hàm getPublicPlaylistCoverUrl (sửa bucket 'cover')
 function getPublicPlaylistCoverUrl(coverPath) {
@@ -389,7 +315,7 @@ window.savePlaylistEdit = async function(playlistId) {
         console.error('Lỗi update playlist:', error);
         alert(`Lỗi: ${error.message}. Kiểm tra quyền RLS nếu cần.`);
     }
-};
+}};
 
 
 
@@ -564,7 +490,9 @@ export async function createPlaylist(playlistData) {
                 name: playlistData.name,
                 color: playlistData.color,
                 user_id: await getCurrentUserId(),
-                cover_url: playlistData.cover_url || null
+                cover_url: playlistData.cover_url || null,
+                description: playlistData.description || null,
+                is_public: !!playlistData.is_public
             }])
             .select()
             .single();
