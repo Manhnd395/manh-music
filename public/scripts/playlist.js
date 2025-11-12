@@ -158,48 +158,73 @@ window.openPlaylistEditModal = async function(playlistId) {
 
         const modal = document.createElement('div');
         modal.id = 'playlistEditModal';
+
+        // Inject minimal Spotify-like styles (scoped to this modal)
+        const style = document.createElement('style');
+        style.textContent = `
+            #playlistEditModal .playlist-modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.65); display:flex; align-items:center; justify-content:center; z-index:10000; }
+            #playlistEditModal .playlist-modal { background: linear-gradient(180deg,#1b1b1b 0%, #141414 100%); padding:24px; border-radius:12px; width:820px; max-width:96%; box-shadow: 0 10px 40px rgba(0,0,0,0.6); position:relative; color:#fff; }
+            #playlistEditModal .playlist-modal .left-cover { width:260px; height:260px; border-radius:6px; background:#222; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+            #playlistEditModal .playlist-modal .left-cover img { width:100%; height:100%; object-fit:cover; }
+            #playlistEditModal .playlist-modal .right { margin-left:20px; flex:1; }
+            #playlistEditModal .playlist-modal .row { margin-bottom:14px; }
+            #playlistEditModal .playlist-modal input[type=text],
+            #playlistEditModal .playlist-modal textarea { width:100%; background:#151515; border:1px solid #333; color:#fff; padding:10px; border-radius:8px; }
+            #playlistEditModal .playlist-actions { display:flex; gap:12px; justify-content:flex-end; margin-top:8px; }
+            #playlistEditModal .muted { color:#b3b3b3; font-size:13px; }
+            @media (max-width:900px) { #playlistEditModal .playlist-modal { width:92%; } #playlistEditModal .playlist-modal .left-cover { width:180px; height:180px; } }
+        `;
+        modal.appendChild(style);
+
         modal.innerHTML = `
-                <div class="playlist-modal-backdrop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;">
-                    <div class="playlist-modal" style="background:#181818;padding:24px 28px;border-radius:12px;width:480px;max-width:95%;box-shadow:0 8px 32px rgba(0,0,0,0.5);position:relative;">
-                         <button onclick="document.getElementById('playlistEditModal').remove()" style="position:absolute;top:10px;right:12px;background:none;border:none;color:#bbb;font-size:20px;cursor:pointer">✕</button>
-                         <h2 style="margin:0 0 16px;font-size:22px;">Chỉnh sửa playlist</h2>
-                         <form id="playlistEditForm" onsubmit="event.preventDefault(); window.savePlaylistModal('${playlist.id}');">
-                             <label style="display:block;margin-bottom:6px;font-weight:600;">Tên</label>
-                             <input id="plName" value="${escapeHtml(playlist.name)}" maxlength="80" style="width:100%;background:#282828;border:1px solid #444;padding:8px 10px;border-radius:6px;color:#fff;margin-bottom:14px;" required />
-
-                             <label style="display:block;margin-bottom:6px;font-weight:600;">Mô tả</label>
-                             <textarea id="plDesc" rows="3" style="width:100%;background:#282828;border:1px solid #444;padding:8px 10px;border-radius:6px;color:#fff;margin-bottom:14px;resize:vertical;">${escapeHtml(playlist.description || '')}</textarea>
-
-                             <div style="display:flex;gap:16px;margin-bottom:16px;align-items:center;">
-                                 <div style="flex:1;">
-                                     <label style="display:block;margin-bottom:6px;font-weight:600;">Màu nền</label>
-                                     <input type="color" id="plColor" value="${playlist.color || '#1db954'}" style="width:60px;height:40px;padding:0;border:none;border-radius:8px;cursor:pointer;" />
-                                 </div>
-                                 <div style="flex:2;">
-                                     <label style="display:block;margin-bottom:6px;font-weight:600;">Công khai?</label>
-                                     <label style="display:flex;align-items:center;gap:8px;color:#ddd;font-size:14px;">
-                                         <input type="checkbox" id="plPublic" ${playlist.is_public ? 'checked' : ''} /> Hiển thị cho mọi người
-                                     </label>
-                                 </div>
-                             </div>
-
-                             <label style="display:block;margin-bottom:6px;font-weight:600;">Ảnh nền</label>
-                             <div style="display:flex;gap:12px;align-items:center;margin-bottom:18px;">
-                                 <input type="file" id="plCoverFile" accept="image/*" style="flex:1;" />
-                                 ${playlist.cover_url ? `<div style='position:relative;'>
-                                        <img src='${getPublicPlaylistCoverUrl(playlist.cover_url)}' style='width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid #333;' onerror="this.src='${defaultCover}'" />
-                                        <button type='button' onclick="window.deletePlaylistCover('${playlist.id}');document.getElementById('playlistEditModal').remove();" style='position:absolute;top:-6px;right:-6px;background:#000;padding:4px 6px;border-radius:50%;border:1px solid #444;font-size:10px;cursor:pointer;'>✕</button>
-                                 </div>` : `<div style='width:70px;height:70px;display:flex;align-items:center;justify-content:center;background:#222;border:1px solid #333;border-radius:8px;font-size:12px;color:#666;'>Không ảnh</div>`}
-                             </div>
-
-                             <div style="display:flex;justify-content:flex-end;gap:12px;">
-                                    <button type="button" onclick="document.getElementById('playlistEditModal').remove()" style="background:#303030;color:#eee;border:none;padding:8px 18px;border-radius:20px;cursor:pointer;">Hủy</button>
-                                    <button type="submit" style="background:#1db954;color:#fff;border:none;padding:8px 22px;font-weight:600;border-radius:24px;cursor:pointer;">Lưu</button>
-                             </div>
-                         </form>
+            <div class="playlist-modal-backdrop">
+                <div class="playlist-modal" role="dialog" aria-label="Edit playlist">
+                    <button class="modal-close" aria-label="Close" title="Close" style="position:absolute;top:12px;right:14px;background:none;border:none;color:#ccc;font-size:20px;cursor:pointer">✕</button>
+                    <div style="display:flex;align-items:flex-start;gap:20px;">
+                        <div class="left-cover">
+                            ${playlist.cover_url ? `<img src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" alt="Cover" onerror="this.src='${defaultCover}'"/>` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#777;font-size:18px;">No Image</div>`}
+                        </div>
+                        <div class="right">
+                            <h2 style="margin:0 0 8px;font-size:22px;">Edit details</h2>
+                            <div class="row">
+                                <label class="muted">Title</label>
+                                <input id="plName" type="text" value="${escapeHtml(playlist.name)}" maxlength="80" required />
+                            </div>
+                            <div class="row">
+                                <label class="muted">Add an optional description</label>
+                                <textarea id="plDesc" rows="4">${escapeHtml(playlist.description || '')}</textarea>
+                            </div>
+                            <div style="display:flex;gap:12px;align-items:center;margin-top:6px;">
+                                <div style="display:flex;flex-direction:column;gap:6px;">
+                                    <label class="muted">Background color</label>
+                                    <input type="color" id="plColor" value="${playlist.color || '#1db954'}" />
+                                </div>
+                                <div style="display:flex;flex-direction:column;gap:6px;flex:1;">
+                                    <label class="muted">Cover image</label>
+                                    <input type="file" id="plCoverFile" accept="image/*" />
+                                </div>
+                                <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;">
+                                    <label class="muted">Public</label>
+                                    <input type="checkbox" id="plPublic" ${playlist.is_public ? 'checked' : ''} />
+                                </div>
+                            </div>
+                            <p class="muted" style="margin-top:12px;font-size:12px;">By proceeding, you agree to give access to the image you choose to upload. Please make sure you have the right to upload the image.</p>
+                            <div class="playlist-actions">
+                                <button class="btn-cancel" type="button" style="background:#2b2b2b;color:#ddd;border:none;padding:10px 18px;border-radius:20px;">Cancel</button>
+                                <button class="btn-save" type="button" style="background:#1db954;color:#fff;border:none;padding:10px 18px;border-radius:24px;font-weight:600;">Save</button>
+                            </div>
+                        </div>
                     </div>
-                </div>`;
+                </div>
+            </div>
+        `;
+
         document.body.appendChild(modal);
+
+        // Attach events
+        modal.querySelector('.modal-close')?.addEventListener('click', () => modal.remove());
+        modal.querySelector('.btn-cancel')?.addEventListener('click', () => modal.remove());
+        modal.querySelector('.btn-save')?.addEventListener('click', () => window.savePlaylistModal('${playlist.id}'));
 };
 
 window.savePlaylistModal = async function(playlistId) {

@@ -510,7 +510,7 @@ function formatTime(seconds) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-window.playTrack = async function (track, playlist = currentPlaylist, index = -1) {
+window.playTrack = async function (track, playlist = currentPlaylist, index = -1, autoplay = true) {
     console.log('🎵 Attempting to play track:', track);
     if (!track || !track.file_url) {
         console.error('❌ Lỗi: Thông tin track không hợp lệ hoặc thiếu file_url.');
@@ -663,10 +663,17 @@ window.playTrack = async function (track, playlist = currentPlaylist, index = -1
         // FIX: Thử load audio trước
         currentAudio.load();
         
-        // FIX: Đợi một chút rồi mới play
-        setTimeout(() => {
-            playAudioWithRetry(currentAudio, track);
-        }, 100);
+        // Only auto-play if requested. Otherwise load and update UI without starting playback.
+        if (autoplay) {
+            // FIX: Đợi một chút rồi mới play
+            setTimeout(() => {
+                playAudioWithRetry(currentAudio, track);
+            }, 100);
+        } else {
+            console.log(`Loaded track "${track.title}" without autoplay.`);
+            if (typeof window.updatePlayerBar === 'function') window.updatePlayerBar(track);
+            updateProgressBar();
+        }
 
     } catch (error) {
         console.error('❌ Lỗi tạo audio element:', error);
@@ -2322,11 +2329,12 @@ async function resumeRecentTrack() {
     const maxAttempts = 15;
 
     const tryPlay = async () => {
-        if (window.updatePlayerBar && document.getElementById('playerBar')) {
+            if (window.updatePlayerBar && document.getElementById('playerBar')) {
             const playlist = await window.getRecommendationsAsPlaylist?.() || [];
             const index = playlist.findIndex(t => t.id === recent.track.id);
-            window.playTrack(recent.track, playlist, index >= 0 ? index : 0);
-            console.log(`Đã resume: "${recent.track.title}"`);
+            // Load the recent track into player but DO NOT start playback automatically
+            window.playTrack(recent.track, playlist, index >= 0 ? index : 0, false);
+            console.log(`Loaded recent track "${recent.track.title}" without autoplay.`);
             return;
         }
 
