@@ -31,7 +31,7 @@ window.loadDetailPlaylist = async function(playlistId) {
         // 1. Lấy thông tin playlist
         const { data: playlist, error } = await supabase
             .from('playlists')
-            .select('id, name, description, color, cover_url, created_at, user_id')
+            .select('id, name, description, color, cover_url, created_at, user_id, is_public')
             .eq('id', playlistId)
             .single();
 
@@ -49,36 +49,14 @@ window.loadDetailPlaylist = async function(playlistId) {
                 </div>
                 <div class="playlist-actions">
                     <button class="play-all-btn" data-id="${playlistId}">Phát Tất Cả</button>
-                    <button class="edit-playlist-btn" onclick="window.toggleEditPlaylist('${playlistId}', '${escapeHtml(playlist.name)}', '${escapeHtml(playlist.description || '')}', '${playlist.color || ''}', '${playlist.cover_url || ''}')">
+                    <button class="edit-playlist-btn" onclick="window.openPlaylistEditModal('${playlistId}')">
                         Chỉnh sửa
                     </button>
                     <button class="delete-playlist-btn" onclick="window.deletePlaylist('${playlistId}')" style="background:#ff4d4d;color:white;padding:8px 16px;border:none;border-radius:4px;margin-left:10px;">
                         Xóa
                     </button>
                 </div>
-                <form id="editPlaylistForm-${playlistId}" class="edit-form" style="display:none;">
-                    <label for="editName-${playlistId}">Tên playlist:</label>
-                    <input type="text" id="editName-${playlistId}" value="${escapeHtml(playlist.name)}" required>
-                    <label for="editDesc-${playlistId}">Mô tả:</label>
-                    <textarea id="editDesc-${playlistId}" rows="2">${escapeHtml(playlist.description || '')}</textarea>
-                    <div style="display:flex;gap:10px;align-items:center;margin:8px 0;">
-                        <label>Màu:</label>
-                        <input type="color" id="editColor-${playlistId}" value="${playlist.color || '#1db954'}">
-                    </div>
-                    <div class="cover-section" style="margin-bottom:10px;">
-                        <label for="editCover-${playlistId}">Ảnh nền:</label>
-                        <input type="file" id="editCover-${playlistId}" accept="image/*">
-                        ${playlist.cover_url ? `<img src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" style="width:60px;height:60px;object-fit:cover;margin-top:5px;border-radius:4px;" onerror="if(!this._tried){this._tried=true;this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';}"><button type="button" onclick="window.deletePlaylistCover('${playlistId}')">Xóa ảnh</button>` : ''}
-                    </div>
-                    <div style="margin-bottom:10px;">
-                        <label>Thứ tự bài hát (kéo thả để sắp xếp):</label>
-                        <ul id="sortableTracks-${playlistId}" class="sortable-track-list" style="list-style:none;padding:0;margin:0;"></ul>
-                    </div>
-                    <div class="edit-actions">
-                        <button type="button" class="btn-save" onclick="window.savePlaylistEdit('${playlistId}')">Lưu</button>
-                        <button type="button" class="btn-cancel" onclick="window.toggleEditPlaylist('${playlistId}')">Hủy</button>
-                    </div>
-                </form>
+                <!-- Modal trigger only; form moved to overlay -->
             `;
 
             // Gắn Play All
@@ -157,7 +135,102 @@ function handlePlayAll(playlistId, playlistData) {
 }
 
 // Hàm toggle edit form
-window.toggleEditPlaylist = function(playlistId, currentName, currentDesc, currentColor, currentCover = null) {
+// Legacy inline editor removed; replaced by modal overlay
+window.toggleEditPlaylist = function() {
+        console.warn('toggleEditPlaylist legacy call ignored (modal in use)');
+};
+
+// Create / open modal
+window.openPlaylistEditModal = async function(playlistId) {
+        const existing = document.getElementById('playlistEditModal');
+        if (existing) existing.remove();
+
+        const { data: playlist, error } = await supabase
+                .from('playlists')
+                .select('id, name, description, color, cover_url, is_public')
+                .eq('id', playlistId)
+                .single();
+        if (error || !playlist) {
+                alert('Không tải được playlist để chỉnh sửa');
+                return;
+        }
+        window.currentEditingPlaylist = playlist;
+
+        const modal = document.createElement('div');
+        modal.id = 'playlistEditModal';
+        modal.innerHTML = `
+                <div class="playlist-modal-backdrop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;">
+                    <div class="playlist-modal" style="background:#181818;padding:24px 28px;border-radius:12px;width:480px;max-width:95%;box-shadow:0 8px 32px rgba(0,0,0,0.5);position:relative;">
+                         <button onclick="document.getElementById('playlistEditModal').remove()" style="position:absolute;top:10px;right:12px;background:none;border:none;color:#bbb;font-size:20px;cursor:pointer">✕</button>
+                         <h2 style="margin:0 0 16px;font-size:22px;">Chỉnh sửa playlist</h2>
+                         <form id="playlistEditForm" onsubmit="event.preventDefault(); window.savePlaylistModal('${playlist.id}');">
+                             <label style="display:block;margin-bottom:6px;font-weight:600;">Tên</label>
+                             <input id="plName" value="${escapeHtml(playlist.name)}" maxlength="80" style="width:100%;background:#282828;border:1px solid #444;padding:8px 10px;border-radius:6px;color:#fff;margin-bottom:14px;" required />
+
+                             <label style="display:block;margin-bottom:6px;font-weight:600;">Mô tả</label>
+                             <textarea id="plDesc" rows="3" style="width:100%;background:#282828;border:1px solid #444;padding:8px 10px;border-radius:6px;color:#fff;margin-bottom:14px;resize:vertical;">${escapeHtml(playlist.description || '')}</textarea>
+
+                             <div style="display:flex;gap:16px;margin-bottom:16px;align-items:center;">
+                                 <div style="flex:1;">
+                                     <label style="display:block;margin-bottom:6px;font-weight:600;">Màu nền</label>
+                                     <input type="color" id="plColor" value="${playlist.color || '#1db954'}" style="width:60px;height:40px;padding:0;border:none;border-radius:8px;cursor:pointer;" />
+                                 </div>
+                                 <div style="flex:2;">
+                                     <label style="display:block;margin-bottom:6px;font-weight:600;">Công khai?</label>
+                                     <label style="display:flex;align-items:center;gap:8px;color:#ddd;font-size:14px;">
+                                         <input type="checkbox" id="plPublic" ${playlist.is_public ? 'checked' : ''} /> Hiển thị cho mọi người
+                                     </label>
+                                 </div>
+                             </div>
+
+                             <label style="display:block;margin-bottom:6px;font-weight:600;">Ảnh nền</label>
+                             <div style="display:flex;gap:12px;align-items:center;margin-bottom:18px;">
+                                 <input type="file" id="plCoverFile" accept="image/*" style="flex:1;" />
+                                 ${playlist.cover_url ? `<div style='position:relative;'>
+                                        <img src='${getPublicPlaylistCoverUrl(playlist.cover_url)}' style='width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid #333;' onerror="this.src='${defaultCover}'" />
+                                        <button type='button' onclick="window.deletePlaylistCover('${playlist.id}');document.getElementById('playlistEditModal').remove();" style='position:absolute;top:-6px;right:-6px;background:#000;padding:4px 6px;border-radius:50%;border:1px solid #444;font-size:10px;cursor:pointer;'>✕</button>
+                                 </div>` : `<div style='width:70px;height:70px;display:flex;align-items:center;justify-content:center;background:#222;border:1px solid #333;border-radius:8px;font-size:12px;color:#666;'>Không ảnh</div>`}
+                             </div>
+
+                             <div style="display:flex;justify-content:flex-end;gap:12px;">
+                                    <button type="button" onclick="document.getElementById('playlistEditModal').remove()" style="background:#303030;color:#eee;border:none;padding:8px 18px;border-radius:20px;cursor:pointer;">Hủy</button>
+                                    <button type="submit" style="background:#1db954;color:#fff;border:none;padding:8px 22px;font-weight:600;border-radius:24px;cursor:pointer;">Lưu</button>
+                             </div>
+                         </form>
+                    </div>
+                </div>`;
+        document.body.appendChild(modal);
+};
+
+window.savePlaylistModal = async function(playlistId) {
+        const name = document.getElementById('plName')?.value.trim();
+        const desc = document.getElementById('plDesc')?.value.trim();
+        const color = document.getElementById('plColor')?.value;
+        const isPublic = !!document.getElementById('plPublic')?.checked;
+        const coverFile = document.getElementById('plCoverFile')?.files[0];
+        if (!name) {
+                alert('Tên không được để trống');
+                return;
+        }
+        let finalCoverUrl = window.currentEditingPlaylist?.cover_url || null;
+        if (coverFile) {
+                const { data: { user } } = await supabase.auth.getUser();
+                const uploadedUrl = await window.uploadPlaylistCover(user.id, playlistId, coverFile);
+                if (uploadedUrl) finalCoverUrl = uploadedUrl;
+        }
+        const updates = { name, description: desc, color, cover_url: finalCoverUrl, is_public: isPublic };
+        try {
+                const { error } = await supabase.from('playlists').update(updates).eq('id', playlistId);
+                if (error) throw error;
+                document.getElementById('playlistEditModal')?.remove();
+                await window.loadDetailPlaylist(playlistId);
+                await window.appFunctions.loadUserPlaylists(true);
+                alert('Đã lưu playlist');
+        } catch (err) {
+                console.error('Lỗi lưu playlist:', err);
+                alert('Lỗi: ' + err.message);
+        }
+};
     const formId = `editPlaylistForm-${playlistId}`;
     const form = document.getElementById(formId);
     const editBtn = document.querySelector(`.edit-playlist-btn[onclick*="toggleEditPlaylist('${playlistId}'"]`);  // Selector động

@@ -133,6 +133,47 @@ CREATE TABLE users (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+---
+
+## Playlists Table Public Flag & Policies
+
+Để hỗ trợ playlist công khai hiển thị ở trang chủ, thêm cột `is_public` vào bảng `playlists` và tạo policy đọc:
+
+```sql
+ALTER TABLE public.playlists
+    ADD COLUMN IF NOT EXISTS is_public boolean DEFAULT false;
+```
+
+Chính sách RLS đề xuất:
+
+```sql
+ALTER TABLE public.playlists ENABLE ROW LEVEL SECURITY;
+
+-- Chủ sở hữu có toàn quyền
+CREATE POLICY IF NOT EXISTS playlists_owner_all
+ON public.playlists FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- Mọi user (kể cả anon) có thể xem playlist công khai
+CREATE POLICY IF NOT EXISTS playlists_read_public
+ON public.playlists FOR SELECT
+TO anon, authenticated
+USING (is_public = true OR auth.uid() = user_id);
+```
+
+Sau đó app có thể truy vấn playlist công khai bằng:
+
+```javascript
+supabase.from('playlists')
+    .select('id,name,color,cover_url,playlist_tracks(count),is_public')
+    .eq('is_public', true)
+    .order('created_at', { ascending: false })
+    .limit(12);
+```
+
+Nếu cần RPC để lấy thống kê nâng cao, sử dụng hàm `get_top_tracks` (xem file `TOP_TRACKS_FUNCTION.sql`).
 ```
 
 ---

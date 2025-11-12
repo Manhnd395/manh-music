@@ -33,6 +33,21 @@
     <div id="recommendList" class="track-list"></div>
 </section>
 
+<section id="public-playlists-section" class="main-section" style="display: none;">
+        <h2>Playlist công khai</h2>
+        <div id="publicPlaylistGrid" class="playlist-grid"></div>
+        <small style="color:#aaa">Các playlist do người dùng công khai</small>
+    
+        <script>
+            // Auto-load public playlists when section is shown via switchTab('public-playlists')
+            window.addEventListener('APP_READY', () => {
+                if (typeof window.renderPublicPlaylists === 'function') {
+                    window.renderPublicPlaylists(12);
+                }
+            });
+        </script>
+    </section>
+
 <section id="upload-section" class="main-section" style="display: none;">
     <h2>Tải nhạc lên</h2>
     <form id="upload-form" onsubmit="event.preventDefault(); window.uploadTrack();"> 

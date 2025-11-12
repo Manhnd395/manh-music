@@ -1122,6 +1122,33 @@ window.renderRecommendations = async function() {
     `).join('');
 };
 
+// Hiển thị playlist công khai ở Home (nếu có cờ is_public)
+window.renderPublicPlaylists = async function(limit = 12) {
+    const container = document.getElementById('publicPlaylistGrid');
+    if (!container) return; // chỉ vẽ nếu có vùng này trong home-content.html
+    container.innerHTML = '<p>Đang tải playlist công khai...</p>';
+    try {
+        const { data: playlists, error } = await supabase
+            .from('playlists')
+            .select('id, name, color, cover_url, playlist_tracks(count), is_public')
+            .eq('is_public', true)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+        if (error) throw error;
+        if (!playlists || playlists.length === 0) {
+            container.innerHTML = '<p class="empty-message">Chưa có playlist công khai.</p>';
+            return;
+        }
+        // Tái sử dụng renderer hiện có
+        import('./playlist.js').then(mod => {
+            mod.renderPlaylists(playlists, container);
+        });
+    } catch (e) {
+        console.error('Lỗi tải public playlists:', e);
+        container.innerHTML = '<p class="error-message">Không tải được playlist công khai.</p>';
+    }
+};
+
 function openPlaylistDetail(playlistId) {
     if (window.switchTab) {
         window.switchTab('detail-playlist', playlistId);
