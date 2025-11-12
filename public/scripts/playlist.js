@@ -161,12 +161,20 @@ window.openPlaylistEditModal = async function(playlistId) {
     }
     window.currentEditingPlaylist = playlist;
 
-    // Ensure stylesheet is loaded once
+    // Ensure stylesheet is loaded once (respect Vite base path /manh-music/ in production)
     if (!document.getElementById('playlistModalStylesheet')) {
         const link = document.createElement('link');
         link.id = 'playlistModalStylesheet';
         link.rel = 'stylesheet';
-        link.href = '/styles/playlist-modal.css';
+        // Use relative path so GitHub Pages base works; fallback injection if load fails
+        link.href = 'styles/playlist-modal.css';
+        link.onload = () => console.log('[Playlist Modal] stylesheet loaded');
+        link.onerror = () => {
+            console.warn('[Playlist Modal] stylesheet failed – injecting minimal inline styles');
+            const style = document.createElement('style');
+            style.textContent = `#playlistEditModal{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;font-family:system-ui}#playlistEditModal .pl-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(2px)}#playlistEditModal .pl-modal{position:relative;width:640px;max-width:92%;background:#1b1b1b;border-radius:16px;padding:32px 36px 38px;box-shadow:0 20px 60px -18px rgba(0,0,0,.8);color:#fff;font-size:15px}#playlistEditModal .pl-modal h2{margin:0 0 24px;font-size:24px;font-weight:600}#playlistEditModal .pl-grid{display:grid;grid-template-columns:220px 1fr;gap:28px}#playlistEditModal .pl-cover-wrapper{width:220px;height:220px;background:#222;border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden}#playlistEditModal .pl-cover-wrapper img{width:100%;height:100%;object-fit:cover}#playlistEditModal .pl-form{display:flex;flex-direction:column}#playlistEditModal .pl-row{margin-bottom:18px;display:flex;flex-direction:column}#playlistEditModal .pl-row label{font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#aaa;margin-bottom:6px}#playlistEditModal input[type=text],#playlistEditModal textarea{background:#151515;border:1px solid #333;color:#fff;padding:12px 14px;border-radius:10px;font-size:15px}#playlistEditModal input[type=text]:focus,#playlistEditModal textarea:focus{outline:2px solid #1db954}#playlistEditModal .pl-actions{display:flex;justify-content:flex-end;gap:16px;margin-top:6px}#playlistEditModal .pl-btn{border:none;padding:12px 24px;border-radius:28px;font-weight:600;cursor:pointer}#playlistEditModal .pl-btn-primary{background:#1db954;color:#fff}#playlistEditModal .pl-btn-secondary{background:#2b2b2b;color:#e0e0e0}`;
+            document.head.appendChild(style);
+        };
         document.head.appendChild(link);
     }
 
@@ -174,12 +182,14 @@ window.openPlaylistEditModal = async function(playlistId) {
     const root = document.createElement('div');
     root.id = 'playlistEditModal';
     root.className = 'pl-modal-root';
+    // Markup with heading like Spotify
     root.innerHTML = `
-        <div class="pl-backdrop" tabindex="-1" aria-hidden="false"></div>
+        <div class="pl-backdrop" tabindex="-1" aria-hidden="true"></div>
         <div class="pl-modal" role="dialog" aria-modal="true" aria-label="Chỉnh sửa playlist">
             <button class="pl-close" aria-label="Đóng">✕</button>
+            <h2 class="pl-title">Edit details</h2>
             <div class="pl-grid">
-                <div class="pl-cover-wrapper" id="plCoverWrapper" aria-label="Ảnh bìa (chỉnh ở khu vực Ảnh nền playlist)">
+                <div class="pl-cover-wrapper" id="plCoverWrapper" aria-label="Ảnh bìa hiện tại">
                     ${playlist.cover_url ? `<img id="plCoverPreview" src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" alt="Playlist cover" onerror="this.src='${defaultCover}'"/>` : `<div id="plCoverPreview" class="pl-cover-placeholder">No Image</div>`}
                 </div>
                 <form id="playlistEditForm" class="pl-form" novalidate>
@@ -206,7 +216,7 @@ window.openPlaylistEditModal = async function(playlistId) {
                             </label>
                         </div>
                     </div>
-                    <p class="pl-hint">Ảnh bìa chỉnh sửa trong phần "Ảnh nền playlist" ở trang chi tiết.</p>
+                    <p class="pl-hint">Ảnh bìa sửa ở trang chi tiết. Thay đổi tên, mô tả, màu và trạng thái công khai tại đây.</p>
                     <div class="pl-actions">
                         <button type="button" class="pl-btn pl-btn-secondary" id="plCancelBtn">Hủy</button>
                         <button type="submit" class="pl-btn pl-btn-primary" id="plSaveBtn">Lưu</button>
@@ -224,6 +234,8 @@ window.openPlaylistEditModal = async function(playlistId) {
     root.querySelector('.pl-close')?.addEventListener('click', closeModal);
     root.querySelector('#plCancelBtn')?.addEventListener('click', closeModal);
     root.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
+    // Dismiss with CTRL+X like some desktop mods (optional)
+    root.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') { closeModal(); } });
 
     // Live counters
     const nameInput = root.querySelector('#plName');
