@@ -297,7 +297,7 @@ async function manualApiCapture(accessToken, refreshToken) {
                     console.log('🔄 Cleared corrupt auth token');
                 }
             }
-            window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { detail: { session: null, error } }));
+            window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { detail: { session: null, error: null } }));
         }
     } catch (err) {
         console.warn('Error getting session:', err);

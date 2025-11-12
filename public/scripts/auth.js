@@ -221,19 +221,31 @@ async function signup() {
 
         console.log('Signup success:', data.user.email);
 
+        // Insert vào users table
+        const userRecord = {
+            id: data.user.id,
+            email: email,
+            username: username,
+            birthday: birthday,
+            avatar_url: 'https://lezswjtnlsmznkgrzgmu.supabase.co/storage/v1/object/public/cover/449bd474-7a51-4c22-b4a4-2ad8736d6fad/default-avatar.png',
+            updated_at: new Date().toISOString()
+        };
+        
+        console.log('📝 Attempting to insert user record:', userRecord);
+        
         const { error: upsertError } = await supabase
             .from('users')
-            .upsert({
-                id: data.user.id,
-                email: email,
-                username: username,
-                birthday: birthday,
-                avatar_url: 'https://lezswjtnlsmznkgrzgmu.supabase.co/storage/v1/object/public/cover/449bd474-7a51-4c22-b4a4-2ad8736d6fad/default-avatar.png',  // Default
-                updated_at: new Date().toISOString()
-            });
+            .upsert(userRecord);
 
         if (upsertError) {
-            console.error('Upsert users error:', upsertError);
+            console.error('❌ Upsert users error:', upsertError);
+            console.error('Error details:', {
+                message: upsertError.message,
+                details: upsertError.details,
+                hint: upsertError.hint,
+                code: upsertError.code
+            });
+            // Không block user - vẫn cho họ tiếp tục
         } else {
             console.log('✅ Users table populated');
         }
