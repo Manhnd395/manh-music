@@ -1,0 +1,44 @@
+/* Playlist Edit Modal Styles */
+.pl-modal-root { position: fixed; inset:0; z-index: 10000; display:flex; align-items:center; justify-content:center; font-family: var(--font-family, system-ui); }
+.pl-backdrop { position:absolute; inset:0; background:rgba(0,0,0,0.65); animation:plFade .25s ease; }
+.pl-modal { position:relative; background:linear-gradient(180deg,#1b1b1b 0%, #141414 100%); color:#fff; width:840px; max-width:95%; border-radius:14px; padding:28px 28px 30px; box-shadow:0 18px 50px -12px rgba(0,0,0,.7); display:flex; flex-direction:column; animation:plPop .28s cubic-bezier(.25,.8,.25,1); }
+.pl-modal:focus { outline:none; }
+.pl-close { position:absolute; top:12px; right:14px; background:none; border:none; color:#ccc; font-size:22px; cursor:pointer; line-height:1; padding:4px; border-radius:6px; transition:background .15s, color .15s; }
+.pl-close:hover { background:#2a2a2a; color:#fff; }
+.pl-grid { display:grid; grid-template-columns:260px 1fr; gap:24px; }
+.pl-cover-wrapper { position:relative; width:260px; height:260px; background:#222; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; cursor:pointer; border:2px dashed #333; transition:border-color .2s, transform .2s; }
+.pl-cover-wrapper:hover { border-color:#1db954; transform:scale(1.015); }
+.pl-cover-wrapper img { width:100%; height:100%; object-fit:cover; }
+.pl-cover-placeholder { color:#777; font-size:16px; }
+.pl-cover-overlay { position:absolute; inset:auto 0 0 0; background:linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,0)); padding:10px 12px; font-size:13px; letter-spacing:.5px; text-transform:uppercase; font-weight:600; text-align:center; }
+.pl-form { display:flex; flex-direction:column; }
+.pl-row { display:flex; flex-direction:column; margin-bottom:18px; position:relative; }
+.pl-row label { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; color:#b3b3b3; }
+.pl-row input[type=text], .pl-row textarea { width:100%; background:#151515; border:1px solid #333; color:#fff; padding:12px 14px; font-size:15px; border-radius:10px; resize:vertical; line-height:1.4; font-family:inherit; transition:border-color .15s, background .15s; }
+.pl-row input[type=text]:focus, .pl-row textarea:focus { outline:none; border-color:#1db954; background:#181818; }
+.pl-row textarea { min-height:120px; }
+.pl-counter { position:absolute; bottom:6px; right:12px; font-size:12px; color:#777; }
+.pl-inline { flex-direction:row; gap:34px; }
+.pl-sub { flex:1; display:flex; flex-direction:column; }
+#plColor { width:64px; height:48px; padding:0; border-radius:10px; border:1px solid #333; background:#151515; cursor:pointer; }
+#plColor:focus { outline:2px solid #1db954; }
+/* Switch */
+.pl-switch { position:relative; display:inline-block; width:56px; height:30px; }
+.pl-switch input { opacity:0; width:0; height:0; }
+.pl-slider { position:absolute; cursor:pointer; inset:0; background:#363636; border-radius:34px; transition:.3s; }
+.pl-slider:before { position:absolute; content:""; height:22px; width:22px; left:4px; top:4px; background:white; border-radius:50%; transition:.3s; }
+.pl-switch input:checked + .pl-slider { background:#1db954; }
+.pl-switch input:checked + .pl-slider:before { transform:translateX(26px); }
+.pl-hint { margin:-4px 0 12px; font-size:11px; color:#888; }
+.pl-actions { display:flex; justify-content:flex-end; gap:18px; margin-top:4px; }
+.pl-btn { font-size:14px; letter-spacing:.3px; border:none; cursor:pointer; padding:12px 24px; border-radius:28px; font-weight:600; transition:background .18s, transform .18s; }
+.pl-btn-primary { background:#1db954; color:#fff; }
+.pl-btn-primary:hover { background:#1ed760; }
+.pl-btn-secondary { background:#2b2b2b; color:#e0e0e0; }
+.pl-btn-secondary:hover { background:#3a3a3a; }
+.pl-btn:active { transform:scale(.96); }
+@media (max-width:880px) { .pl-grid { grid-template-columns: 1fr; } .pl-cover-wrapper { width:100%; height:200px; } }
+@keyframes plFade { from { opacity:0; } to { opacity:1; } }
+@keyframes plPop { from { opacity:0; transform:scale(.94); } to { opacity:1; transform:scale(1); } }
+/* Focus trap helper (optional future JS) */
+.pl-modal-root:focus-within .pl-modal { outline:none; }
