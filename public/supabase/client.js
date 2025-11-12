@@ -229,18 +229,41 @@ async function manualApiCapture(accessToken, refreshToken) {
     }
     
     try {
-        const { data, error } = await supabase.auth.getSession();
-        let session = data?.session ?? null;
-        console.log('client.js getSession result:', session?.user?.email ?? null, error ?? null);
-        
         // Debug: Check localStorage
         const storageKey = `sb-${supabaseUrl.split('//')[1].split('.')[0]}-auth-token`;
         const storedData = localStorage.getItem(storageKey);
         console.log('📦 localStorage check:', {
             hasData: !!storedData,
-            dataLength: storedData?.length || 0,
-            sessionFromGet: !!session
+            dataLength: storedData?.length || 0
         });
+        
+        // Nếu có data trong storage nhưng SDK không detect, force restore
+        if (storedData && !session) {
+            console.log('🔧 Force restoring session from localStorage...');
+            try {
+                const parsedSession = JSON.parse(storedData);
+                if (parsedSession.access_token && parsedSession.refresh_token) {
+                    console.log('🔄 Calling setSession with stored tokens...');
+                    const { data: restoredData, error: restoreError } = await supabase.auth.setSession({
+                        access_token: parsedSession.access_token,
+                        refresh_token: parsedSession.refresh_token
+                    });
+                    
+                    if (restoredData?.session) {
+                        console.log('✅ Session restored from localStorage:', restoredData.session.user.email);
+                        session = restoredData.session;
+                    } else if (restoreError) {
+                        console.error('❌ Failed to restore session:', restoreError);
+                    }
+                }
+            } catch (parseError) {
+                console.error('❌ Failed to parse stored session:', parseError);
+            }
+        }
+        
+        const { data, error } = await supabase.auth.getSession();
+        session = data?.session ?? session; // Use restored session if getSession returns null
+        console.log('client.js getSession result:', session?.user?.email ?? null, error ?? null);
         
         if (session?.user) {
             window.currentUser = session.user;
