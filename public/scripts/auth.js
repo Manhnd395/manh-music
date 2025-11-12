@@ -105,7 +105,7 @@ function attachFormListeners() {
             await loginWithEmail();
         });
     }
-});
+};
 
 function displayError(inputId, message) {
     const errorElement = document.getElementById(`${inputId}Error`);
