@@ -421,16 +421,40 @@ async function updateProfileDisplay(user, forceRefresh = false) {
 async function loadProfile(userId) {
     if (cachedProfile) return cachedProfile;
 
-    const { data, error } = await supabase
+    // 1) Try get profile without throwing when 0 rows
+    let { data: profile, error: selectError } = await supabase
         .from('users')
         .select('username, birthday, avatar_url')
         .eq('id', userId)
-        .single();
-        
-    if (error) throw error;
-    
-    cachedProfile = data;
-    return data;
+        .maybeSingle();
+
+    // 2) If not found, create a default profile row safely
+    if (!profile) {
+        const defaultUsername = (window.currentUser?.email || '')?.split('@')[0] || 'user';
+        const { data: inserted, error: insertError } = await supabase
+            .from('users')
+            .upsert({
+                id: userId,
+                email: window.currentUser?.email || null,
+                username: defaultUsername,
+                birthday: null,
+                avatar_url: null
+            }, { onConflict: 'id' })
+            .select('username, birthday, avatar_url')
+            .single();
+
+        if (insertError) {
+            console.error('❌ Failed to bootstrap user profile:', insertError);
+            throw insertError;
+        }
+        profile = inserted;
+    } else if (selectError) {
+        // Other select errors bubble up
+        throw selectError;
+    }
+
+    cachedProfile = profile;
+    return profile;
 }
 window.loadProfile = loadProfile;
 

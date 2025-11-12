@@ -276,14 +276,22 @@ async function manualApiCapture(accessToken, refreshToken) {
                 console.warn('⚠️ Token near expiry - may need refresh soon');
             }
             
-            // Quick RLS test: Check nếu user có thể query self (verify auth/RLS)
-            supabase.from('users').select('id').eq('id', session.user.id).single().then(({ data, error }) => {
-                if (error) {
-                    console.warn('⚠️ Quick RLS test failed in client.js:', error.message);
-                } else {
-                    console.log('✅ Client RLS quick test OK');
-                }
-            }).catch(quickErr => console.warn('Quick test failed:', quickErr));
+            // Quick RLS test (tolerant nếu profile chưa khởi tạo)
+            supabase
+              .from('users')
+              .select('id')
+              .eq('id', session.user.id)
+              .maybeSingle()
+              .then(({ data, error }) => {
+                  if (error && error.code !== 'PGRST116') {
+                      console.warn('⚠️ Quick RLS test error (non-empty):', error.message);
+                  } else if (!data) {
+                      console.log('ℹ️ No profile row yet — will be auto-created when needed.');
+                  } else {
+                      console.log('✅ RLS basic self query OK');
+                  }
+              })
+              .catch(quickErr => console.warn('Quick test failed:', quickErr));
             
             window.dispatchEvent(new CustomEvent('SUPABASE_SESSION_RESTORED', { detail: { session } }));
         } else {
