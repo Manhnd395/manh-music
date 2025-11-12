@@ -216,34 +216,55 @@ async function signup() {
         }
 
         console.log('Signup success:', data.user.email);
+        console.log('User ID:', data.user.id);
 
-        // Insert vào users table
+        // Insert vào users table - CRITICAL: Phải thành công trước khi redirect
         const userRecord = {
             id: data.user.id,
             email: email,
             username: username,
             birthday: birthday,
             avatar_url: 'https://lezswjtnlsmznkgrzgmu.supabase.co/storage/v1/object/public/cover/449bd474-7a51-4c22-b4a4-2ad8736d6fad/default-avatar.png',
+            created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         };
         
         console.log('📝 Attempting to insert user record:', userRecord);
         
-        const { error: upsertError } = await supabase
+        // Try insert first, then upsert if exists
+        const { data: insertData, error: insertError } = await supabase
             .from('users')
-            .upsert(userRecord);
+            .insert(userRecord)
+            .select()
+            .single();
 
-        if (upsertError) {
-            console.error('❌ Upsert users error:', upsertError);
-            console.error('Error details:', {
-                message: upsertError.message,
-                details: upsertError.details,
-                hint: upsertError.hint,
-                code: upsertError.code
-            });
-            // Không block user - vẫn cho họ tiếp tục
+        if (insertError) {
+            console.error('❌ Insert failed, trying upsert...', insertError);
+            
+            // Try upsert as fallback
+            const { data: upsertData, error: upsertError } = await supabase
+                .from('users')
+                .upsert(userRecord, { onConflict: 'id' })
+                .select()
+                .single();
+            
+            if (upsertError) {
+                console.error('❌ Upsert also failed:', upsertError);
+                console.error('Error details:', {
+                    message: upsertError.message,
+                    details: upsertError.details,
+                    hint: upsertError.hint,
+                    code: upsertError.code
+                });
+                
+                // BLOCK user - không cho tiếp tục nếu không insert được
+                alert('Đăng ký thành công nhưng không thể tạo profile. Vui lòng liên hệ admin.');
+                return;
+            } else {
+                console.log('✅ Users table populated via upsert:', upsertData);
+            }
         } else {
-            console.log('✅ Users table populated');
+            console.log('✅ Users table populated via insert:', insertData);
         }
 
         const basePath = getBasePath();
