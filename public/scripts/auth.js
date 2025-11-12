@@ -45,7 +45,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // This is our primary listener for live auth changes (login, logout)
     supabase.auth.onAuthStateChange((event, session) => {
         console.log(`Auth.js: onAuthStateChange event: ${event}`, session);
-        // We trust onAuthStateChange as the source of truth for live events
         handleAuthChangeEvent(event, session);
     });
 
@@ -56,11 +55,10 @@ document.addEventListener('DOMContentLoaded', function() {
         handleAuthChangeEvent('INITIAL_SESSION', e.detail.session);
     });
 
-    // Initial check for pages that might not have a user
-    // This helps redirect from protected pages if the session restoration is slow
+    // Initial soft check after DOM ready; relies on grace/settled flags to avoid bouncing
     setTimeout(() => {
         checkRedirect();
-    }, 50);
+    }, 150);
 
 
     // Attach listeners to forms

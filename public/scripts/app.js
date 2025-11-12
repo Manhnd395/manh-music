@@ -2778,36 +2778,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Đăng ký listener cho mọi sự kiện auth (nên đặt ngay sau khi Supabase khởi tạo)
-supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log('⚙️ Auth state changed:', event, session?.user?.email || 'no user');
-    console.log('SIGNED_IN event, user:', session?.user, 'at', performance.now());
-    if (event === 'SIGNED_IN' && session?.user) {
-        console.log('✅ User signed in:', session.user.email);
-        window.appInitialized = false;
-        resetAllCaches?.();
-        await initializeApp(session.user);
-        window.appInitialized = true;
-        setTimeout(testRLSPolicies, 1000);
-    }
-
-    if (event === 'SIGNED_OUT') {
-        console.log(' User signed out — resetting app');
-        window.appInitialized = false;
-        updateProfileDisplay?.(null);
-        resetAllCaches?.();
-
-        if (window.currentAudio) {
-            window.currentAudio.pause();
-            window.currentAudio = null;
-        }
-        window.isPlaying = false;
-
-        if (!window.location.pathname.includes('index.html')) {
-            const basePath = import.meta.env.BASE_URL || '/manh-music/';
-            window.location.href = basePath + 'index.html';
-        }
-    }
-});
+// Removed internal supabase.auth.onAuthStateChange to avoid double init & cache thrash.
+// Auth flow now centralized in auth.js which dispatches SUPABASE_AUTH_CHANGE.
 
 function navigateTo(target) {
     if (target === 'home') {
