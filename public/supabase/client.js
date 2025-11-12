@@ -10,6 +10,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Supabase config missing');
 }
 
+// Mark session not yet settled until first getSession completes
+window.supabaseSessionSettled = false;
+window.supabaseSessionStart = performance.now();
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
@@ -48,6 +52,8 @@ window.dispatchEvent(new Event('SUPABASE_CLIENT_READY'));
             detail: { session: null, source: 'SDK' }
         }));
     }
+    window.supabaseSessionSettled = true;
+    window.supabaseSessionSetTime = performance.now();
 
     // Clean up URL after the SDK has processed it.
     const url = new URL(window.location.href);

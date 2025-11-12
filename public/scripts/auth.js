@@ -74,21 +74,33 @@ function checkRedirect() {
     const isAuthPage = currentPath === basePath || currentPath.endsWith('/index.html') || currentPath.includes('signup.html');
     const isPlayerPage = currentPath.includes('player.html');
 
-    // Guard: avoid bouncing if initialization is in progress
+    // Grace window: allow up to 4s for session restore before redirecting away from player
+    const graceMs = 4000;
+    const elapsed = performance.now() - (window.supabaseSessionStart || 0);
+    const sessionSettled = window.supabaseSessionSettled === true;
+
     if (window.initializationInProgress) {
         console.log('Auth.js: Initialization in progress, skip redirect check');
         return;
     }
 
     if (!user && isPlayerPage) {
-        console.log('Auth.js: No user on player page, redirecting to login.');
+        if (!sessionSettled && elapsed < graceMs) {
+            console.log(`Auth.js: Waiting for session (elapsed ${Math.round(elapsed)}ms < ${graceMs}ms)`);
+            return; // do not redirect yet
+        }
+        console.log('Auth.js: No user after grace period on player → redirect to login');
         window.location.replace(basePath + 'index.html');
-    } else if (user && isAuthPage) {
-        console.log('Auth.js: User logged in on auth page, redirecting to player.');
-        window.location.replace(basePath + 'player.html');
-    } else {
-        console.log('Auth.js: Auth state consistent.');
+        return;
     }
+
+    if (user && isAuthPage) {
+        console.log('Auth.js: User logged in on auth page → redirect to player');
+        window.location.replace(basePath + 'player.html');
+        return;
+    }
+
+    console.log('Auth.js: Auth state consistent (no redirect).');
 }
 
 function attachFormListeners() {
