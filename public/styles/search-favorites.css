@@ -117,7 +117,7 @@
     position: absolute;
     top: 10px;
     right: 10px;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.7);
     border: none;
     border-radius: 50%;
     width: 40px;
@@ -129,25 +129,30 @@
     transition: all 0.3s;
     opacity: 0;
     transform: scale(0.8);
+    z-index: 10;
 }
 
-.playlist-card:hover .favorite-btn {
+/* Show favorite button on hover for spotify-style cards */
+.playlist-card.spotify-style:hover .favorite-btn {
     opacity: 1;
     transform: scale(1);
 }
 
-.favorite-btn:hover {
-    background: rgba(0, 0, 0, 0.8);
-    transform: scale(1.1);
-}
-
+/* Always show favorited buttons */
 .favorite-btn.favorited {
     opacity: 1;
     background: rgba(29, 185, 84, 0.9);
+    transform: scale(1);
+}
+
+.favorite-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: scale(1.1);
 }
 
 .favorite-btn.favorited:hover {
     background: rgba(29, 185, 84, 1);
+    transform: scale(1.1);
 }
 
 .favorite-icon {
@@ -161,6 +166,21 @@
 
 .favorite-btn:not(.favorited) .favorite-icon::before {
     content: "🤍";
+}
+
+/* Playlist owner and favorite date styling */
+.playlist-card .playlist-owner {
+    font-size: 12px;
+    color: #b3b3b3;
+    margin-top: 4px;
+    font-weight: 400;
+}
+
+.playlist-favorite-date {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 6px;
+    font-style: italic;
 }
 
 /* Empty State */

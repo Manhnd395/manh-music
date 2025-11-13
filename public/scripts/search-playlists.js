@@ -214,11 +214,19 @@ function createPlaylistCardHTML(playlist, isFavorited = false) {
     const defaultCover = 'https://lezswjtnlsmznkgrzgmu.supabase.co/storage/v1/object/public/cover/449bd474-7a51-4c22-b4a4-2ad8736d6fad/default-cover.webp';
     const coverUrl = playlist.cover_url || defaultCover;
     const ownerUsername = playlist.owner_username || playlist.users?.username || 'Unknown';
+    const color = playlist.color || '#1DB954';
+    
+    // Get track count
+    let trackCount = 0;
+    if (playlist.playlist_tracks && typeof playlist.playlist_tracks.count === 'number') {
+        trackCount = playlist.playlist_tracks.count;
+    } else if (playlist.track_count) {
+        trackCount = playlist.track_count;
+    }
     
     return `
-        <div class="playlist-card" 
-             data-playlist-id="${playlist.id}"
-             style="background: linear-gradient(135deg, ${playlist.color || '#1db954'}, #000);">
+        <div class="playlist-card spotify-style" 
+             data-playlist-id="${playlist.id}">
             
             <button class="favorite-btn ${isFavorited ? 'favorited' : ''}" 
                     data-playlist-id="${playlist.id}"
@@ -226,23 +234,13 @@ function createPlaylistCardHTML(playlist, isFavorited = false) {
                 <span class="favorite-icon"></span>
             </button>
             
+            <div class="playlist-cover-img" 
+                 style="background-image: url('${coverUrl}');"></div>
+                 
             <div class="playlist-info">
-                <img src="${coverUrl}" 
-                     alt="Playlist cover" 
-                     class="playlist-cover"
-                     onerror="this.src='${defaultCover}'">
-                     
-                <h3 class="playlist-name">${escapeHtml(playlist.name)}</h3>
-                
-                <p class="playlist-meta">
-                    Bởi: ${escapeHtml(ownerUsername)}
-                    ${playlist.is_public ? '• Công khai' : '• Riêng tư'}
-                </p>
-                
-                ${playlist.description ? 
-                    `<p class="playlist-description">${escapeHtml(playlist.description)}</p>` 
-                    : ''
-                }
+                <h3>${escapeHtml(playlist.name)}</h3>
+                <p>${trackCount} bài hát</p>
+                <p class="playlist-owner">by ${escapeHtml(ownerUsername)}</p>
             </div>
         </div>
     `;

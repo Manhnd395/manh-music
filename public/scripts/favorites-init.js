@@ -71,26 +71,32 @@ const additionalCSS = `
     position: absolute;
     top: 8px;
     right: 8px;
-    z-index: 2;
+    z-index: 10;
 }
 
-/* Ensure favorite buttons are visible on existing cards */
-.playlist-card:not(.spotify-style) .favorite-btn {
-    background: rgba(0, 0, 0, 0.7);
+/* Ensure spotify-style cards work with favorite buttons */
+.playlist-card.spotify-style {
+    position: relative;
 }
 
-.playlist-card:not(.spotify-style):hover .favorite-btn {
-    background: rgba(0, 0, 0, 0.9);
+.playlist-card.spotify-style .favorite-btn {
+    top: 12px;
+    right: 12px;
 }
 
 /* Responsive favorite buttons */
 @media (max-width: 768px) {
     .playlist-card .favorite-btn {
         opacity: 1;
-        top: 5px;
-        right: 5px;
+        top: 8px;
+        right: 8px;
         width: 35px;
         height: 35px;
+    }
+    
+    .playlist-card.spotify-style .favorite-btn {
+        top: 10px;
+        right: 10px;
     }
 }
 `;

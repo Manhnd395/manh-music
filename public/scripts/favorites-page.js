@@ -87,11 +87,19 @@ function createFavoritePlaylistCard(playlist) {
     const coverUrl = playlist.cover_url || defaultCover;
     const ownerUsername = playlist.owner_username || 'Unknown';
     const favoriteDate = new Date(playlist.favorited_at).toLocaleDateString('vi-VN');
+    const color = playlist.color || '#1DB954';
+    
+    // Get track count
+    let trackCount = 0;
+    if (playlist.playlist_tracks && typeof playlist.playlist_tracks.count === 'number') {
+        trackCount = playlist.playlist_tracks.count;
+    } else if (playlist.track_count) {
+        trackCount = playlist.track_count;
+    }
     
     return `
-        <div class="playlist-card favorite-card" 
-             data-playlist-id="${playlist.id}"
-             style="background: linear-gradient(135deg, ${playlist.color || '#1db954'}, #000);">
+        <div class="playlist-card spotify-style favorite-card" 
+             data-playlist-id="${playlist.id}">
             
             <button class="favorite-btn favorited" 
                     data-playlist-id="${playlist.id}"
@@ -99,27 +107,16 @@ function createFavoritePlaylistCard(playlist) {
                 <span class="favorite-icon"></span>
             </button>
             
+            <div class="playlist-cover-img" 
+                 style="background-image: url('${coverUrl}');"></div>
+                 
             <div class="playlist-info">
-                <img src="${coverUrl}" 
-                     alt="Playlist cover" 
-                     class="playlist-cover"
-                     onerror="this.src='${defaultCover}'">
-                     
-                <h3 class="playlist-name">${escapeHtml(playlist.name)}</h3>
-                
-                <p class="playlist-meta">
-                    Bởi: ${escapeHtml(ownerUsername)}
-                    ${playlist.is_public ? '• Công khai' : '• Riêng tư'}
-                </p>
-                
+                <h3>${escapeHtml(playlist.name)}</h3>
+                <p>${trackCount} bài hát</p>
+                <p class="playlist-owner">by ${escapeHtml(ownerUsername)}</p>
                 <p class="playlist-favorite-date">
-                    Yêu thích từ: ${favoriteDate}
+                    Yêu thích: ${favoriteDate}
                 </p>
-                
-                ${playlist.description ? 
-                    `<p class="playlist-description">${escapeHtml(playlist.description)}</p>` 
-                    : ''
-                }
             </div>
         </div>
     `;
