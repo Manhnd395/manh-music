@@ -219,54 +219,69 @@ window.sendAIQuery = async function(trackId, title, artist) {
     
     try {
         const apiKey = window.GROQ_API_KEY;
-        console.log('GROQ API Key status:', { 
-            exists: !!apiKey, 
-            length: apiKey?.length || 0, 
-            isPlaceholder: apiKey === '__VITE_GROQ_API_KEY__',
-            sample: apiKey?.substring(0, 10) + '...' 
-        });
         
-        if (!apiKey || apiKey === 'your-groq-key-here' || apiKey === '__VITE_GROQ_API_KEY__' || apiKey === undefined) {
-            throw new Error('GROQ_API_KEY chưa được cấu hình hoặc không hợp lệ');
+        // Enhanced API key validation
+        const isValidKey = apiKey && 
+                          apiKey !== 'your-groq-key-here' && 
+                          apiKey !== '__VITE_GROQ_API_KEY__' && 
+                          apiKey !== 'undefined' &&
+                          apiKey.length > 10;
+        
+        if (!isValidKey) {
+            console.warn('GROQ API key invalid or missing:', {
+                exists: !!apiKey,
+                isPlaceholder: apiKey === '__VITE_GROQ_API_KEY__',
+                length: apiKey?.length || 0
+            });
+            throw new Error('GROQ_API_KEY not configured properly');
         }
         
         // Prompt tối ưu
-        const prompt = `Bạn là chuyên gia âm nhạc. Trả lời ngắn gọn, hấp dẫn về bài hát "${title}" của ${artist}. Câu hỏi: ${userMessage}. Chỉ trả lời bằng tiếng Việt, dưới 200 từ.`;
+        const prompt = `Bạn là chuyên gia âm nhạc. Trả lời ngắn gọn về bài hát "${title}" của ${artist}. Câu hỏi: ${userMessage}. Trả lời bằng tiếng Việt, dưới 200 từ.`;
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
         
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'Authorization': `Bearer ${apiKey.trim()}`
             },
             body: JSON.stringify({
-                model: 'llama-3.1-8b-instant',
+                model: 'llama3-8b-8192', // Updated model
                 messages: [
                     { role: 'system', content: 'Bạn là trợ lý âm nhạc thân thiện, trả lời bằng tiếng Việt.' },
                     { role: 'user', content: prompt }
                 ],
                 max_tokens: 300,
                 temperature: 0.7
-            })
+            }),
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Groq full error:', errorText);
+            console.error('GROQ API Error:', {
+                status: response.status,
+                statusText: response.statusText,
+                error: errorText
+            });
             throw new Error(`API error: ${response.status} - ${errorText}`);
         }
         
         const data = await response.json();
-        console.log('📦 Full Groq response:', data);  // Debug
         
-        if (!data || !data.choices || data.choices.length === 0) {
-            throw new Error('No response – check quota/key');
+        if (!data?.choices?.[0]?.message?.content) {
+            console.error('Invalid GROQ response:', data);
+            throw new Error('Empty or invalid response from AI');
         }
         
-        let text = data.choices[0]?.message?.content || '';
-        if (!text.trim()) {
-            console.warn('Empty text from Groq:', data);
-            throw new Error('Response empty – check prompt/key/quota');
+        let text = data.choices[0].message.content.trim();
+        if (!text) {
+            throw new Error('AI returned empty response');
         }
         
         // Add AI response
@@ -276,22 +291,27 @@ window.sendAIQuery = async function(trackId, title, artist) {
         messages.appendChild(aiDiv);
         messages.scrollTop = messages.scrollHeight;
         
-        console.log('✅ AI response for:', userMessage);
+        console.log('✅ GROQ AI response success');
         
     } catch (error) {
-        console.error('AI query error:', error);
+        console.error('GROQ AI error:', error);
+        
+        // Enhanced fallback responses
         const errorDiv = document.createElement('div');
         errorDiv.className = 'chat-message ai';
         errorDiv.style.color = 'var(--warning-color)';
         
-        // Fallback responses based on error type
         let fallbackMessage = '';
-        if (error.message.includes('API_KEY') || error.message.includes('chưa được cấu hình')) {
-            fallbackMessage = `🎵 Hiện tại chức năng AI chat chưa khả dụng. Tuy nhiên, tôi có thể chia sẻ rằng "${title}" của ${artist} là một bài hát thú vị! Bạn có thể tìm hiểu thêm về nghệ sĩ này trên các platform âm nhạc khác.`;
-        } else if (error.message.includes('401') || error.message.includes('Invalid API Key')) {
-            fallbackMessage = `🔑 API key không hợp lệ. Đang sử dụng chế độ offline: "${title}" nghe có vẻ hay đấy! Bạn thích thể loại nhạc nào của ${artist}?`;
+        if (error.name === 'AbortError') {
+            fallbackMessage = `⏱️ Yêu cầu timeout. "${title}" của ${artist} có vẻ thú vị! Hãy thử lại sau.`;
+        } else if (error.message.includes('GROQ_API_KEY') || error.message.includes('not configured')) {
+            fallbackMessage = `🤖 AI chat chưa sẵn sàng. Tuy nhiên, "${title}" của ${artist} là một bài hát hay! Bạn có thể tìm hiểu thêm về nghệ sĩ này.`;
+        } else if (error.message.includes('401') || error.message.includes('403')) {
+            fallbackMessage = `🔑 Dịch vụ AI tạm thời không khả dụng. "${title}" nghe có vẻ tuyệt! Bạn thích phong cách âm nhạc nào của ${artist}?`;
+        } else if (error.message.includes('429')) {
+            fallbackMessage = `🚦 Quá nhiều yêu cầu. Hãy đợi một chút rồi thử lại. "${title}" của ${artist} chắc chắn đáng nghe!`;
         } else {
-            fallbackMessage = `⚡ AI tạm thời bận, nhưng "${title}" của ${artist} chắc chắn đáng nghe! Hãy thử lại sau hoặc khám phá thêm bài hát khác.`;
+            fallbackMessage = `⚡ AI đang bận. Nhưng "${title}" của ${artist} rất hay! Hãy thử lại sau hoặc khám phá thêm bài hát khác.`;
         }
         
         errorDiv.innerHTML = fallbackMessage;
@@ -394,94 +414,111 @@ async function fetchLyrics(track) {
         clearTimeout(timeoutId);
         console.warn('Lyrics.ovh failed:', error.message);
         
-        // Fallback: Genius với proxy
+        // Fallback: Genius API với multiple proxy options
         try {
-            const geniusKey = 'IxVXGHsLgddA9h0Po19AjKMezA4xvvKJ5uQ0CiDfpK9oFPrBXE3dr43iaeCbRlFG';  // Giữ key cũ
-            const searchQuery = encodeURIComponent(`${track.title} ${track.artist} lyrics`);  
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`https://api.genius.com/search?q=${searchQuery}`)}`;
-            const geniusResponse = await fetch(proxyUrl);
-            if (!geniusResponse.ok) throw new Error('Proxy/Genius failed: ' + geniusResponse.status);
-            const geniusData = await geniusResponse.json();
+            console.log('Trying Genius API fallback...');
+            const searchQuery = encodeURIComponent(`${track.title} ${track.artist}`);
             
-            if (!geniusData.response || !geniusData.response.hits || geniusData.response.hits.length === 0) {
-                throw new Error('No Genius match for song');
+            // Try multiple proxy services
+            const proxies = [
+                `https://api.allorigins.win/get?url=${encodeURIComponent(`https://api.genius.com/search?q=${searchQuery}`)}&cache_bust=${Date.now()}`,
+                `https://corsproxy.io/?${encodeURIComponent(`https://api.genius.com/search?q=${searchQuery}`)}`,
+                `https://cors-anywhere.herokuapp.com/https://api.genius.com/search?q=${searchQuery}`
+            ];
+            
+            let geniusData = null;
+            let lastError = null;
+            
+            for (const proxyUrl of proxies) {
+                try {
+                    console.log('Trying proxy:', proxyUrl.split('?')[0]);
+                    
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 8000);
+                    
+                    const geniusResponse = await fetch(proxyUrl, {
+                        headers: {
+                            'Authorization': 'Bearer IxVXGHsLgddA9h0Po19AjKMezA4xvvKJ5uQ0CiDfpK9oFPrBXE3dr43iaeCbRlFG'
+                        },
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (!geniusResponse.ok) {
+                        throw new Error(`HTTP ${geniusResponse.status}`);
+                    }
+                    
+                    const responseData = await geniusResponse.json();
+                    
+                    // Handle allorigins response format
+                    if (responseData.contents) {
+                        geniusData = JSON.parse(responseData.contents);
+                    } else {
+                        geniusData = responseData;
+                    }
+                    
+                    if (geniusData?.response?.hits?.length > 0) {
+                        console.log('✅ Genius API success with proxy');
+                        break;
+                    }
+                    
+                } catch (err) {
+                    lastError = err;
+                    console.warn('Proxy failed:', err.message);
+                    continue;
+                }
+            }
+            
+            if (!geniusData?.response?.hits?.length) {
+                throw new Error(`No lyrics found after trying all proxies. Last error: ${lastError?.message}`);
             }
             
             const hit = geniusData.response.hits[0];
             const lyricsUrl = hit.result.url;
             
-            const lyricsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(lyricsUrl)}`;
-            const lyricsResponse = await fetch(lyricsProxyUrl);
-            if (!lyricsResponse.ok) throw new Error('Proxy lyrics failed: ' + lyricsResponse.status);
-            const lyricsHtml = await lyricsResponse.text();
+            // Simple lyrics extraction without fetching full HTML
+            const lyricsPreview = hit.result.full_title || `${hit.result.title} - ${hit.result.primary_artist.name}`;
+            container.innerHTML = `
+                <div class="lyrics-header">
+                    <h4>🎵 ${hit.result.full_title}</h4>
+                    <p>Nghệ sĩ: ${hit.result.primary_artist.name}</p>
+                    <a href="${lyricsUrl}" target="_blank" class="genius-link">
+                        <i class="fas fa-external-link-alt"></i> Xem lyrics đầy đủ trên Genius
+                    </a>
+                </div>
+                <p class="lyrics-note">💡 Click link trên để xem lời bài hát chi tiết</p>
+            `;
             
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(lyricsHtml, 'text/html');
-            const lyricsContent = doc.querySelector('.Lyrics__Lyrics__Content');
-            if (!lyricsContent) throw new Error('Lyrics element not found');
-            
-            const lineElements = lyricsContent.querySelectorAll('.Lyrics__Line');
-            let lyrics = Array.from(lineElements).map(line => line.innerText.trim()).join('\n');
-            
-            if (lyrics && lyrics.trim() !== '') {
-                lyrics = lyrics.replace(/\n\s*\n/g, '\n\n').replace(/\[.*?\]/g, '').trim();
-                container.textContent = lyrics;
-                localStorage.setItem(cacheKey, lyrics);
-                container.classList.remove('lyrics-loading');
-                console.log('✅ Genius lyrics for:', track.title);
-                return;
-            }
-            throw new Error('Genius lyrics empty - no more fallbacks');
-        } catch (geniusError) {
-            console.warn('Genius failed:', geniusError.message);
-            // ✅ FIX: Chỉ hiển thị message đơn giản, không AI
-            const noLyricsMsg = `Chưa có lời cho bài hát "${track.title}" của ${track.artist}.`;
-            container.textContent = noLyricsMsg;
-            localStorage.setItem(cacheKey, noLyricsMsg);  // Cache message để tránh spam request
+            localStorage.setItem(cacheKey, container.innerHTML);
             container.classList.remove('lyrics-loading');
-            console.log('❌ No lyrics found for:', track.title);
+            console.log('✅ Genius info displayed for:', track.title);
+            return;
+            
+        } catch (geniusError) {
+            console.warn('All Genius methods failed:', geniusError.message);
         }
+        
+        // Final fallback - simple error message
+        const noLyricsMsg = `Chưa có lời cho bài hát "${track.title}" của ${track.artist}.`;
+        container.textContent = noLyricsMsg;
+        localStorage.setItem(cacheKey, noLyricsMsg);
+        container.classList.remove('lyrics-loading');
+        console.log('❌ No lyrics found for:', track.title);
     }
 }
 
-async function fetchLyricsFromGenius(track, container, cacheKey) {
-    try {
-        const searchQuery = encodeURIComponent(`${track.title} ${track.artist}`);
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://api.genius.com/search?q=${searchQuery}`)}`;
-        const geniusResponse = await fetch(proxyUrl);
-        if (!geniusResponse.ok) throw new Error('Không thể truy cập Genius qua proxy');
-
-        const proxyData = await geniusResponse.json();
-        const geniusData = JSON.parse(proxyData.contents);
-        const hit = geniusData.response?.hits?.[0];
-        const lyricsUrl = hit?.result?.url;
-        if (!lyricsUrl) throw new Error('Không tìm thấy URL lời bài hát');
-
-        const lyricsProxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(lyricsUrl)}`;
-        const lyricsResponse = await fetch(lyricsProxyUrl);
-        if (!lyricsResponse.ok) throw new Error('Không thể tải nội dung lời bài hát');
-
-        const lyricsHtml = (await lyricsResponse.json()).contents;
-        const doc = new DOMParser().parseFromString(lyricsHtml, 'text/html');
-        const lyricsContent = doc.querySelector('.Lyrics__Lyrics__Content');
-        if (!lyricsContent) throw new Error('Không tìm thấy phần lời bài hát');
-
-        const lines = Array.from(lyricsContent.querySelectorAll('.Lyrics__Line')).map(line => line.innerText.trim());
-        let lyrics = lines.join('\n').replace(/\n\s*\n/g, '\n\n').replace(/\[.*?\]/g, '').trim();
-
-        if (lyrics) {
-            container.textContent = lyrics;
-            localStorage.setItem(cacheKey, lyrics);
-            container.classList.remove('lyrics-loading');
-            console.log('✅ Lấy lời từ Genius:', track.title);
-            return;
-        }
-        throw new Error('Lời bài hát từ Genius rỗng');
-    } catch (error) {
-        console.warn('❌ Genius thất bại:', error.message);
-        container.textContent = `🚫 Không tìm thấy lời bài hát cho "${track.title}" của ${track.artist}.\n\n👉 Thử bài hát phổ biến hơn hoặc kiểm tra kết nối.`;
-        container.classList.remove('lyrics-loading');
-    }
+// Generate mock lyrics fallback
+function generateMockLyrics(title, artist) {
+    const lines = [
+        `[Verse 1]\nIn the rhythm of ${title}, we find our way,`,
+        `\n${artist}'s melody, lighting up the day.`,
+        `\n[Chorus]\nOh, ${title}, take me higher,`,
+        `With your sound, set my soul on fire.`,
+        `\n[Verse 2]\nWhispers of the night, in every note we hear,`,
+        `${title} forever, drawing us near.`
+    ];
+    return lines.join('\n') + `\n\n*(Mock lyrics - Use real API for full verses)*`;
 }
 
 async function getNextTrackPreview() {

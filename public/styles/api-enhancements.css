@@ -1,0 +1,82 @@
+/* API Enhancement Styles */
+
+/* Chat và Song Info Enhancements */
+.chat-message.ai {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    border-radius: 15px 15px 5px 15px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    font-size: 14px;
+    line-height: 1.4;
+    max-width: 85%;
+    word-wrap: break-word;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.lyrics-header {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.lyrics-header h4 {
+    margin: 0 0 8px 0;
+    color: var(--primary-color);
+    font-size: 16px;
+}
+
+.lyrics-header p {
+    margin: 0 0 12px 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.genius-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent-color);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(var(--accent-color-rgb), 0.1);
+    transition: all 0.2s ease;
+    font-size: 13px;
+}
+
+.genius-link:hover {
+    background: rgba(var(--accent-color-rgb), 0.2);
+    transform: translateY(-1px);
+}
+
+.lyrics-note {
+    color: var(--text-secondary);
+    font-style: italic;
+    font-size: 13px;
+    margin: 8px 0;
+}
+
+.lyrics-loading {
+    opacity: 0.6;
+    font-style: italic;
+}
+
+/* Error states */
+.chat-message[style*="warning-color"] {
+    background: linear-gradient(135deg, #ff9500, #ff6b35) !important;
+    border-left: 4px solid #ff4444;
+}
+
+/* Timeout/Loading indicators */
+.api-status {
+    display: inline-block;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.1);
+    margin-left: 8px;
+}
