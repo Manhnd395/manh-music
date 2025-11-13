@@ -443,14 +443,19 @@ async function loginWithEmail() {
     }
 }
 
+// Get correct base path for OAuth redirects
+function getBasePath() {
+    return (typeof import !== 'undefined' && import.meta.env && import.meta.env.BASE_URL)
+        ? import.meta.env.BASE_URL
+        : '/manh-music/';
+}
+
 async function loginWithGoogle() {
     console.log('Login with Google called');
     
     try {
         const basePath = getBasePath();
-
-        // Redirect về index của project path để Supabase xử lý code/token rồi mới điều hướng tiếp
-        const redirectUrl = `${window.location.origin}${basePath}`; // e.g., https://.../manh-music/
+        const redirectUrl = `${window.location.origin}${basePath}player.html`;
         console.log('Google OAuth redirectTo →', redirectUrl);
 
         const { data, error } = await supabase.auth.signInWithOAuth({

@@ -1,30 +1,42 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ManhMusic</title>
-    <script>
-        // Handle OAuth callback on wrong path, preserve search+hash
-        const hash = window.location.hash || '';
-        const search = window.location.search || '';
-        const pathname = window.location.pathname || '';
-        const hasOAuthParams = /access_token=|refresh_token=|code=/.test(hash + search);
-        const base = 'https://manhnd395.github.io/manh-music/';
-
-        if (hasOAuthParams) {
-            if (pathname === '/player.html') {
-                window.location.replace(base + 'player.html' + search + hash);
-            } else {
-                window.location.replace(base + search + hash);
-            }
-        } else {
-            // Regular 404, redirect to home
-            window.location.replace(base);
+    <title>404 - Page Not Found</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
         }
-    </script>
+    </style>
 </head>
 <body>
-    <p>Redirecting...</p>
+    <h1>404 - Page Not Found</h1>
+    <p>If you were redirected here by an OAuth provider, you will be forwarded to the correct page.</p>
+    <p><a href="/manh-music/">Go back to home</a></p>
+    
+    <script>
+        (function () {
+            // Handle OAuth callbacks that might be redirected to wrong paths
+            var pathname = window.location.pathname || '/';
+            var hash = window.location.hash || '';
+            var search = window.location.search || '';
+            
+            // Check if this is a player.html callback at root level
+            var isPlayerAtRoot = pathname === '/player.html' || pathname.endsWith('/player.html');
+            var hasOAuthParams = /access_token=|refresh_token=|code=/.test(hash + search);
+            
+            if (isPlayerAtRoot || hasOAuthParams) {
+                console.log('OAuth callback detected on 404, redirecting to correct path');
+                // Use explicit base for GitHub Pages hosting
+                var base = '/manh-music/';
+                var target = window.location.origin + base + 'player.html' + hash + search;
+                // Use replace so the 404 doesn't remain in history
+                window.location.replace(target);
+            }
+        })();
+    </script>
 </body>
 </html>
