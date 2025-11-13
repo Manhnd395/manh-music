@@ -1,5 +1,4 @@
 // ui.js (Phiên bản Nâng cấp - Chỉ xử lý giao diện)
-// const GEMINI_API_KEY = 'AIzaSyCEeQKXZzDAvUQVlHdnNZ9ZvrkCGJN9Abc';
 
 // Global debouncing utility
 window.uiHelpers = {
