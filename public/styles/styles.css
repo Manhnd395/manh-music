@@ -64,7 +64,7 @@ body.dark-theme {
 
 .sidebar-bottom {
   position: absolute;
-  bottom: 20px;
+  bottom: calc(var(--player-bar-height, 80px) + 20px); /* Player bar height + margin */
   width: calc(100% - 40px);  /* Adjust padding */
 }
 

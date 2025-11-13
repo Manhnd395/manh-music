@@ -54,6 +54,9 @@
 }
 
 .sidebar-bottom {
+    position: absolute;
+    bottom: calc(var(--player-bar-height, 80px) + 20px); /* Ensure clearance from player bar */
+    width: calc(100% - 40px);
     padding-top: 15px;
     border-top: 1px solid var(--border-color);
 }
