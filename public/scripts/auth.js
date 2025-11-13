@@ -10,7 +10,7 @@ let isLoggin = false;
 
 function getBasePath() {
     // Priority 1: Vite injected BASE_URL (when built)
-    if (typeof import !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) {
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) {
         const envBase = import.meta.env.BASE_URL;
         return envBase.endsWith('/') ? envBase : envBase + '/';
     }
