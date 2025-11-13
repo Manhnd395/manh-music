@@ -5,22 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ManhMusic</title>
     <script>
-        // Handle OAuth callback on wrong path, preserve search+hash
+        // Handle OAuth callback on wrong path, preserve hash with tokens
         const hash = window.location.hash || '';
         const search = window.location.search || '';
         const pathname = window.location.pathname || '';
         const hasOAuthParams = /access_token=|refresh_token=|code=/.test(hash + search);
-        const base = 'https://manhnd395.github.io/manh-music/';
+        const base = '/manh-music/';
 
         if (hasOAuthParams) {
-            if (pathname === '/player.html') {
-                window.location.replace(base + 'player.html' + search + hash);
+            // OAuth callback detected - redirect to correct path preserving hash
+            if (pathname === '/player.html' || pathname.endsWith('/player.html')) {
+                console.log('404: OAuth callback to /player.html, redirecting to correct base path');
+                window.location.replace(`${window.location.origin}${base}player.html${hash}`);
             } else {
-                window.location.replace(base + search + hash);
+                console.log('404: OAuth callback, redirecting to base with hash');
+                window.location.replace(`${window.location.origin}${base}${hash}`);
             }
         } else {
             // Regular 404, redirect to home
-            window.location.replace(base);
+            window.location.replace(`${window.location.origin}${base}`);
         }
     </script>
 </head>
