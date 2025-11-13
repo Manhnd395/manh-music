@@ -10,17 +10,21 @@
         const search = window.location.search || '';
         const pathname = window.location.pathname || '';
         const hasOAuthParams = /access_token=|refresh_token=|code=/.test(hash + search);
-        const base = 'https://manhnd395.github.io/manh-music/';
+        const base = '/manh-music/';
 
         if (hasOAuthParams) {
             console.log('Root 404 detected OAuth params; normalizing path...');
-            if (pathname === '/player.html') {
-                window.location.replace(base + 'player.html' + search + hash);
+            // OAuth callback detected - redirect to correct path preserving hash
+            if (pathname === '/player.html' || pathname.endsWith('/player.html')) {
+                console.log('Root 404: Redirecting /player.html to correct base path');
+                window.location.replace(`${window.location.origin}${base}player.html${hash}`);
             } else {
-                window.location.replace(base + search + hash);
+                console.log('Root 404: Redirecting to base with hash');
+                window.location.replace(`${window.location.origin}${base}${hash}`);
             }
         } else {
-            window.location.replace(base);
+            // Regular 404, redirect to home
+            window.location.replace(`${window.location.origin}${base}`);
         }
     </script>
 </head>
