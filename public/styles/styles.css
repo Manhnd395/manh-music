@@ -89,7 +89,7 @@ body.dark-theme {
   align-items: center;
   justify-content: flex-end;
   padding: 0 20px;
-  z-index: 5;
+  z-index: 1500; /* Higher than sidebar (1001) and player bar (1000) */
 }
 
 .profile-wrapper {

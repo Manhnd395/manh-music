@@ -71,10 +71,13 @@
     justify-content: space-between; 
     align-items: center;
     padding: 0 0 20px 0;
-    /* Dùng sticky để header profile luôn ở trên cùng khi cuộn */
-    position: sticky; 
+    /* Use fixed position to pin header at top */
+    position: fixed; 
     top: 0; 
-    z-index: 500;
+    right: 0;
+    width: calc(100% - 200px);
+    height: 60px;
+    z-index: 1500; /* Higher than sidebar and player bar */
     background-color: var(--background-color); 
 }
 

@@ -505,6 +505,11 @@ window.playTrack = async function (track, playlist = currentPlaylist, index = -1
         if (isShuffling) {
             generateShuffleOrder();
         }
+    } else {
+        // Clear playlist context when playing single track
+        currentPlaylist = [];
+        currentTrackIndex = 0;
+        window.currentPlaylistSource = null;
     }
 
     // FIX: Validate và sửa URL nếu cần
@@ -1619,6 +1624,18 @@ window.loadPlaylistTracks = async function(playlistId, shouldPlay = false) {
         return cachedPlaylistTracks[playlistId];
     }
     try {
+        // BƯỚC 0: Fetch playlist info để lấy tên
+        const { data: playlistInfo, error: playlistError } = await supabase
+            .from('playlists')
+            .select('name')
+            .eq('id', playlistId)
+            .single();
+
+        let playlistName = 'Playlist không xác định';
+        if (!playlistError && playlistInfo) {
+            playlistName = playlistInfo.name;
+        }
+
         // BƯỚC 1: Fetch track_ids và added_at từ playlist_tracks (chỉ lấy trường cần thiết)
         const { data: playlistItems, error: fetchItemsError } = await supabase
             .from('playlist_tracks')
@@ -1636,7 +1653,7 @@ window.loadPlaylistTracks = async function(playlistId, shouldPlay = false) {
             const emptyTracks = [];
             if (!cachedPlaylistTracks) cachedPlaylistTracks = {};
             cachedPlaylistTracks[playlistId] = emptyTracks;
-            window.currentPlaylistSource = 'Playlist ID ' + playlistId;
+            window.currentPlaylistSource = playlistName;
             return emptyTracks;
         }
 
@@ -1670,7 +1687,7 @@ window.loadPlaylistTracks = async function(playlistId, shouldPlay = false) {
 
         if (!cachedPlaylistTracks) cachedPlaylistTracks = {};
         cachedPlaylistTracks[playlistId] = tracksWithAddedAt;
-        window.currentPlaylistSource = 'Playlist ID ' + playlistId;
+        window.currentPlaylistSource = playlistName;
         console.log(`Tải ${tracksWithAddedAt.length} tracks từ playlist ${playlistId}:`, tracksWithAddedAt.map(t => t.title));
 
         if (shouldPlay && tracksWithAddedAt.length > 0) {

@@ -47,7 +47,7 @@ async function testAPIs() {
     
     // Test Genius (via proxy)
     try {
-        const testUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://api.genius.com/search?q=test');
+        const testUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://api.genius.com/search?q=test');
         const response = await fetch(testUrl);
         if (response.ok) {
             console.log('✅ Genius proxy accessible');

@@ -111,6 +111,9 @@ body {
     overflow-y: auto;
     background-color: #000;
     color: #fff;
+    padding-bottom: var(--player-bar-height); /* Add padding để logout không bị player bar che */
+    position: relative;
+    z-index: 1001; /* Higher than player bar (1000) */
 }
 
 .sidebar-nav {
@@ -126,6 +129,7 @@ body {
     flex-grow: 1;
     overflow-y: auto;
     padding: 20px;
+    padding-top: 80px; /* Space for fixed header (60px) + padding */
     height: 100%;
     background: #121212;
 }

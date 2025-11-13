@@ -156,7 +156,10 @@ window.updatePlayerBar = function(track) {
     // Render nội dung chính
     rightPanel.innerHTML = `
         <div class="right-panel-content">
-            <div class="current-playlist-header">${window.currentPlaylistSource || 'Gợi ý cho bạn'}</div>
+            ${window.currentPlaylistSource && window.currentPlaylist && window.currentPlaylist.length > 0 
+                ? `<div class="current-playlist-header">${window.currentPlaylistSource}</div>` 
+                : ''
+            }
           <img src="${track.cover_url || defaultCover}" 
               alt="${track.title} cover" 
               class="track-cover-large" 
@@ -258,7 +261,7 @@ window.sendAIQuery = async function(trackId, title, artist) {
                 'Authorization': `Bearer ${apiKey.trim()}`
             },
             body: JSON.stringify({
-                model: 'llama3-8b-8192', // Updated model
+                model: 'llama-3.1-8b-instant', // Updated to active model
                 messages: [
                     { role: 'system', content: 'Bạn là trợ lý âm nhạc thân thiện, trả lời bằng tiếng Việt.' },
                     { role: 'user', content: prompt }
@@ -430,9 +433,8 @@ async function fetchLyrics(track) {
             
             // Try multiple proxy services
             const proxies = [
-                `https://api.allorigins.win/get?url=${encodeURIComponent(`https://api.genius.com/search?q=${searchQuery}`)}&cache_bust=${Date.now()}`,
                 `https://corsproxy.io/?${encodeURIComponent(`https://api.genius.com/search?q=${searchQuery}`)}`,
-                `https://cors-anywhere.herokuapp.com/https://api.genius.com/search?q=${searchQuery}`
+                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://api.genius.com/search?q=${searchQuery}`)}`
             ];
             
             let geniusData = null;
@@ -460,12 +462,8 @@ async function fetchLyrics(track) {
                     
                     const responseData = await geniusResponse.json();
                     
-                    // Handle allorigins response format
-                    if (responseData.contents) {
-                        geniusData = JSON.parse(responseData.contents);
-                    } else {
-                        geniusData = responseData;
-                    }
+                    // Direct response (no wrapper)
+                    geniusData = responseData;
                     
                     if (geniusData?.response?.hits?.length > 0) {
                         console.log('✅ Genius API success with proxy');
@@ -518,14 +516,14 @@ async function fetchLyrics(track) {
 }
 
 async function getNextTrackPreview() {
-    if (currentPlaylist.length === 0) return null;
-    let nextIndex = (currentTrackIndex + 1) % currentPlaylist.length;
-    if (isShuffling) {
-        let shuffleIdx = shuffleOrder.indexOf(currentTrackIndex);
-        shuffleIdx = (shuffleIdx + 1) % currentPlaylist.length;
-        nextIndex = shuffleOrder[shuffleIdx];
+    if (!window.currentPlaylist || window.currentPlaylist.length === 0) return null;
+    let nextIndex = (window.currentTrackIndex + 1) % window.currentPlaylist.length;
+    if (window.isShuffling) {
+        let shuffleIdx = window.shuffleOrder.indexOf(window.currentTrackIndex);
+        shuffleIdx = (shuffleIdx + 1) % window.currentPlaylist.length;
+        nextIndex = window.shuffleOrder[shuffleIdx];
     }
-    return currentPlaylist[nextIndex] || null;
+    return window.currentPlaylist[nextIndex] || null;
 }
 
 // FIXED home loader: chờ session & init event thay vì tự fetch lại nhiều lần
