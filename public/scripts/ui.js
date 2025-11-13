@@ -1,6 +1,25 @@
 // ui.js (Phiên bản Nâng cấp - Chỉ xử lý giao diện)
 // const GEMINI_API_KEY = 'AIzaSyCEeQKXZzDAvUQVlHdnNZ9ZvrkCGJN9Abc';
 
+// Global debouncing utility
+window.uiHelpers = {
+    clickTimeouts: new Map(),
+    
+    // Prevent double clicks with debouncing
+    preventDoubleClick(key, delay = 1000) {
+        if (this.clickTimeouts.has(key)) {
+            return true; // Already executing
+        }
+        
+        this.clickTimeouts.set(key, true);
+        setTimeout(() => {
+            this.clickTimeouts.delete(key);
+        }, delay);
+        
+        return false; // Safe to execute
+    }
+};
+
 window.getAssetUrl = function(relativePath) {
     const getBaseUrl = () => {
         const script = document.querySelector('script[src*="ui.js"]');
@@ -200,7 +219,9 @@ window.sendAIQuery = async function(trackId, title, artist) {
     
     try {
         const apiKey = window.GROQ_API_KEY;
-        if (!apiKey) throw new Error('GROQ_API_KEY chưa được cấu hình');
+        if (!apiKey || apiKey === 'your-groq-key-here' || apiKey === undefined) {
+            throw new Error('GROQ_API_KEY chưa được cấu hình hoặc không hợp lệ');
+        }
         
         // Prompt tối ưu
         const prompt = `Bạn là chuyên gia âm nhạc. Trả lời ngắn gọn, hấp dẫn về bài hát "${title}" của ${artist}. Câu hỏi: ${userMessage}. Chỉ trả lời bằng tiếng Việt, dưới 200 từ.`;
@@ -209,10 +230,10 @@ window.sendAIQuery = async function(trackId, title, artist) {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`  // FIX: Dùng window.GROQ_API_KEY
+                'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'llama-3.1-8b-instant',  // Model ổn định, miễn phí
+                model: 'llama-3.1-8b-instant',
                 messages: [
                     { role: 'system', content: 'Bạn là trợ lý âm nhạc thân thiện, trả lời bằng tiếng Việt.' },
                     { role: 'user', content: prompt }
@@ -254,8 +275,19 @@ window.sendAIQuery = async function(trackId, title, artist) {
         console.error('AI query error:', error);
         const errorDiv = document.createElement('div');
         errorDiv.className = 'chat-message ai';
-        errorDiv.style.color = 'var(--danger-color)';
-        errorDiv.textContent = `Lỗi: ${error.message}. Thử lại sau!`;
+        errorDiv.style.color = 'var(--warning-color)';
+        
+        // Fallback responses based on error type
+        let fallbackMessage = '';
+        if (error.message.includes('API_KEY') || error.message.includes('chưa được cấu hình')) {
+            fallbackMessage = `🎵 Hiện tại chức năng AI chat chưa khả dụng. Tuy nhiên, tôi có thể chia sẻ rằng "${title}" của ${artist} là một bài hát thú vị! Bạn có thể tìm hiểu thêm về nghệ sĩ này trên các platform âm nhạc khác.`;
+        } else if (error.message.includes('401') || error.message.includes('Invalid API Key')) {
+            fallbackMessage = `🔑 API key không hợp lệ. Đang sử dụng chế độ offline: "${title}" nghe có vẻ hay đấy! Bạn thích thể loại nhạc nào của ${artist}?`;
+        } else {
+            fallbackMessage = `⚡ AI tạm thời bận, nhưng "${title}" của ${artist} chắc chắn đáng nghe! Hãy thử lại sau hoặc khám phá thêm bài hát khác.`;
+        }
+        
+        errorDiv.innerHTML = fallbackMessage;
         messages.appendChild(errorDiv);
         messages.scrollTop = messages.scrollHeight;
     } finally {

@@ -229,8 +229,8 @@ window.openPlaylistEditModal = async function(playlistId) {
                         </div>
                     </div>
                     <div class="pl-actions">
-                        <button type="button" class="pl-btn pl-btn-secondary" id="plCancelBtn">Hủy</button>
-                        <button type="submit" class="pl-btn pl-btn-primary" id="plSaveBtn">Lưu</button>
+                        <button type="button" class="pl-btn pl-btn-secondary" id="plCancelBtn">Huỷ</button>
+                        <button type="submit" class="pl-btn pl-btn-primary" id="plSaveBtn">${creationMode ? 'Tạo' : 'Lưu'}</button>
                     </div>
                 </form>
             </div>
@@ -287,10 +287,37 @@ window.openPlaylistEditModal = async function(playlistId) {
     });
 
     // Submit
-    root.querySelector('#playlistEditForm').addEventListener('submit', (e) => {
+    const form = root.querySelector('#playlistEditForm');
+    let isSubmitting = false; // Prevent double submission
+    
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        // In creation mode the patched savePlaylistModal (from openCreatePlaylistModal) ignores the id param.
-        window.savePlaylistModal(playlist.id);
+        
+        // Prevent double submission
+        if (isSubmitting) {
+            console.warn('[Playlist Modal] Form submission already in progress');
+            return;
+        }
+        
+        isSubmitting = true;
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        
+        try {
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = creationMode ? 'Đang tạo...' : 'Đang lưu...';
+            }
+            
+            // In creation mode the patched savePlaylistModal (from openCreatePlaylistModal) ignores the id param.
+            await window.savePlaylistModal(playlist.id);
+            
+        } finally {
+            isSubmitting = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = creationMode ? 'Tạo' : 'Lưu';
+            }
+        }
     });
 };
  

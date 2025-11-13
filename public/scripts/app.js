@@ -934,6 +934,15 @@ async function loadUserPlaylists(forceRefresh = false) {
 }
 window.appFunctions.loadUserPlaylists = window.loadUserPlaylists;
 
+// Fix dropdown containers after loading content
+function fixDropdownContainers() {
+    setTimeout(() => {
+        if (window.dropdownFix?.ensureContainers) {
+            window.dropdownFix.ensureContainers();
+        }
+    }, 100);
+}
+
 window.renderRecentHistory = async function() {
     const container = document.getElementById('historyTrackList');
     if (!container) return;
@@ -980,12 +989,17 @@ window.renderRecentHistory = async function() {
                     </div>
                 </div>
                 <div class="track-actions">
-                    <button class="btn-action" onclick="event.stopPropagation(); window.appFunctions.togglePlaylistDropdown(this, '${item.tracks.id}')">
-                        <i class="fas fa-plus"></i>
-                    </button>
+                    <div class="playlist-add-container">
+                        <button class="btn-action" onclick="event.stopPropagation(); window.appFunctions.togglePlaylistDropdown(this, '${item.tracks.id}')">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <div class="playlist-dropdown"></div>
+                    </div>
                 </div>
             </div>
         `).join('');
+
+        fixDropdownContainers(); // Fix missing containers
 
     } catch (error) {
         console.error('Lỗi tải lịch sử gần đây:', error);
@@ -1106,76 +1120,138 @@ window.renderRecommendations = async function() {
                 </div>
             </div>
             <div class="track-actions">
-                <button class="btn-action" onclick="event.stopPropagation(); window.togglePlaylistDropdown(this, '${t.id}')">
-                    <i class="fas fa-plus"></i>
-                </button>
+                <div class="playlist-add-container">
+                    <button class="btn-action" onclick="event.stopPropagation(); window.togglePlaylistDropdown(this, '${t.id}')">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <div class="playlist-dropdown"></div>
+                </div>
             </div>
         </div>`;
     }).join('');
+    
+    fixDropdownContainers(); // Fix missing containers
 };
 
-// Hiển thị playlist công khai ở Home (nếu có cờ is_public)
-window.renderPublicPlaylists = async function(limit = 12) {
+// Hiển thị playlist công khai ở Home với pagination và lazy loading
+window.renderPublicPlaylists = async function(limit = 12, offset = 0, append = false) {
     const container = document.getElementById('publicPlaylistGrid');
     if (!container) {
         console.warn('[Public] Grid container #publicPlaylistGrid not found. Skip render.');
-        return; // chỉ vẽ nếu có vùng này trong home-content.html
+        return { playlists: [], hasMore: false };
     }
-    container.innerHTML = '<p>Đang tải playlist công khai...</p>';
+    
+    if (!append) {
+        container.innerHTML = '<p>Đang tải playlist công khai...</p>';
+    }
+    
     try {
-        const { data: playlists, error } = await supabase
+        // Query with pagination
+        const { data: playlists, error, count } = await supabase
             .from('playlists')
-            .select('id, name, color, cover_url, user_id, is_public, playlist_tracks(count), users!user_id(username)')
+            .select('id, name, color, cover_url, user_id, is_public, playlist_tracks(count), users!user_id(username)', { count: 'exact' })
             .eq('is_public', true)
             .order('created_at', { ascending: false })
-            .limit(limit);
+            .range(offset, offset + limit - 1);
+            
         if (error) throw error;
-        console.log(`[Public] Loaded public playlists: ${playlists ? playlists.length : 0}`);
+        
+        const totalCount = count || 0;
+        const hasMore = offset + limit < totalCount;
+        
+        console.log(`[Public] Loaded ${playlists?.length || 0}/${totalCount} public playlists (offset: ${offset})`);
+        
         if (!playlists || playlists.length === 0) {
-            container.innerHTML = '<p class="empty-message">Chưa có playlist công khai.</p>';
-            return;
+            if (!append) {
+                container.innerHTML = '<p class="empty-message">Chưa có playlist công khai.</p>';
+            }
+            return { playlists: [], hasMore: false };
         }
-        // Tái sử dụng renderer hiện có
+        
+        // Create wrapper for pagination if not exists
+        if (!append && !container.querySelector('.public-playlists-wrapper')) {
+            container.innerHTML = `
+                <div class="public-playlists-wrapper">
+                    <div class="public-playlists-grid"></div>
+                    <div class="load-more-container" style="text-align: center; margin-top: 20px;">
+                        <button id="loadMorePublicBtn" class="btn-secondary" style="display: none;">
+                            Xem thêm playlist
+                        </button>
+                        <div id="loadingMore" style="display: none;">Đang tải...</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        const gridContainer = container.querySelector('.public-playlists-grid') || container;
+        const loadMoreBtn = container.querySelector('#loadMorePublicBtn');
+        const loadingMore = container.querySelector('#loadingMore');
+        
+        // Normalize owner username for renderer
+        playlists.forEach(p => {
+            p.owner_username = p.users?.username || p.username || null;
+        });
+        
+        // Render playlists
         if (window.renderPlaylistsWithFavorites) {
             try {
-                // Normalize owner username for renderer
-                playlists.forEach(p => {
-                    p.owner_username = p.users?.username || p.username || null;
-                });
-                await window.renderPlaylistsWithFavorites(playlists, container, {
+                await window.renderPlaylistsWithFavorites(playlists, gridContainer, {
                     showFavoriteButtons: true,
-                    showOwner: true
+                    showOwner: true,
+                    append: append
                 });
             } catch (e) {
                 console.warn('Error with enhanced public playlists renderer:', e);
                 // Fallback to regular renderer
-                import('./playlist.js').then(mod => {
-                    playlists.forEach(p => {
-                        p.owner_username = p.users?.username || p.username || null;
-                    });
-                    mod.renderPlaylists(playlists, container);
-                });
+                const mod = await import('./playlist.js');
+                if (append) {
+                    const existingHTML = gridContainer.innerHTML;
+                    mod.renderPlaylists(playlists, gridContainer);
+                    gridContainer.innerHTML = existingHTML + gridContainer.innerHTML;
+                } else {
+                    mod.renderPlaylists(playlists, gridContainer);
+                }
             }
         } else {
             // Fallback to regular renderer
-            import('./playlist.js').then(mod => {
-                playlists.forEach(p => {
-                    p.owner_username = p.users?.username || p.username || null;
-                });
-                mod.renderPlaylists(playlists, container);
-            });
+            const mod = await import('./playlist.js');
+            if (append) {
+                const existingHTML = gridContainer.innerHTML;
+                mod.renderPlaylists(playlists, gridContainer);
+                gridContainer.innerHTML = existingHTML + gridContainer.innerHTML;
+            } else {
+                mod.renderPlaylists(playlists, gridContainer);
+            }
         }
+        
+        // Update load more button
+        if (loadMoreBtn && loadingMore) {
+            if (hasMore) {
+                loadMoreBtn.style.display = 'block';
+                loadMoreBtn.onclick = async () => {
+                    loadMoreBtn.style.display = 'none';
+                    loadingMore.style.display = 'block';
+                    
+                    try {
+                        await window.renderPublicPlaylists(limit, offset + limit, true);
+                    } finally {
+                        loadingMore.style.display = 'none';
+                    }
+                };
+            } else {
+                loadMoreBtn.style.display = 'none';
+                if (offset > 0) {
+                    loadMoreBtn.parentElement.innerHTML = '<p class="text-muted">Đã hiển thị tất cả playlist</p>';
+                }
+            }
+        }
+        
+        return { playlists, hasMore };
+        
     } catch (e) {
         console.error('Lỗi tải public playlists:', e);
         container.innerHTML = '<p class="error-message">Không tải được playlist công khai.</p>';
-        // Diagnostic hints for RLS
-        console.warn('[Public] Nếu không thấy playlist công khai, kiểm tra RLS policies bảng playlists & users.');
-        console.warn('Suggested policies:\n' +
-            "create policy 'playlists_public_anon' on public.playlists for select to anon using ( is_public );" + '\n' +
-            "create policy 'playlists_public_auth' on public.playlists for select to authenticated using ( is_public OR auth.uid() = user_id );" + '\n' +
-            "create policy 'users_public_owner' on public.users for select to anon using ( exists (select 1 from public.playlists p where p.user_id = users.id and p.is_public) );" + '\n' +
-            "create policy 'users_self_or_public' on public.users for select to authenticated using ( id = auth.uid() OR exists (select 1 from public.playlists p where p.user_id = users.id and p.is_public) );");
-        console.warn('Fallback: implement SECURITY DEFINER function get_public_playlists if RLS phức tạp.');
+        return { playlists: [], hasMore: false };
     }
 };
 
@@ -1249,6 +1325,12 @@ window.handleCreatePlaylistSubmit = handleCreatePlaylistSubmit;
 
 // Reuse edit modal UI for creating a new playlist
 window.openCreatePlaylistModal = function() {
+    // Check if modal already exists to prevent duplicates
+    if (document.getElementById('playlistEditModal')) {
+        console.warn('Create playlist modal already open');
+        return;
+    }
+    
     // Open modal with empty data and on save, call create instead of update
     const temp = { 
         id: 'NEW', 
@@ -1258,18 +1340,39 @@ window.openCreatePlaylistModal = function() {
         cover_url: 'https://lezswjtnlsmznkgrzgmu.supabase.co/storage/v1/object/public/cover/449bd474-7a51-4c22-b4a4-2ad8736d6fad/default-cover.webp', 
         is_public: false 
     };
+    
     // Ensure playlist.js is loaded and use its renderer with slight override
     import('./playlist.js').then(mod => {
         // Monkey-patch save handler for this session
         const originalSave = window.savePlaylistModal;
+        let isCreating = false; // Prevent double submission
+        
         window.savePlaylistModal = async function(_) {
+            // Prevent double submission
+            if (isCreating) {
+                console.warn('Playlist creation already in progress');
+                return;
+            }
+            
             const name = document.getElementById('plName')?.value.trim();
             const desc = document.getElementById('plDesc')?.value.trim();
             const color = document.getElementById('plColor')?.value;
             const isPublic = !!document.getElementById('plPublic')?.checked;
             const coverFile = document.getElementById('plCoverFile')?.files?.[0];
+            const saveBtn = document.getElementById('plSaveBtn');
 
-            if (!name) return alert('Tên không được để trống');
+            if (!name) {
+                alert('Tên không được để trống');
+                return;
+            }
+            
+            // Set creating flag and disable button
+            isCreating = true;
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Đang tạo...';
+            }
+            
             let coverUrl = null;
             try {
                 const { data: { user } } = await supabase.auth.getUser();
@@ -1291,13 +1394,22 @@ window.openCreatePlaylistModal = function() {
                         await supabase.from('playlists').update({ cover_url: uploadedUrl }).eq('id', created.id);
                     }
                 }
+                
+                // Close modal and refresh
                 document.getElementById('playlistEditModal')?.remove();
                 await window.appFunctions.loadUserPlaylists(true);
                 alert('Đã tạo playlist');
+                
             } catch (err) {
                 console.error('Lỗi tạo playlist:', err);
                 alert('Lỗi: ' + err.message);
             } finally {
+                // Reset state
+                isCreating = false;
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Lưu';
+                }
                 window.savePlaylistModal = originalSave;
             }
         };
@@ -2126,16 +2238,50 @@ async function loadHistoryTracks(forceRefresh = false) {
 // Override legacy creator to reuse overlay edit modal UI
 window.openCreatePlaylistModal = function() {
     console.log('Open Create Playlist (overlay)');
+    
+    // Prevent double clicks
+    if (window.uiHelpers?.preventDoubleClick('createPlaylist', 2000)) {
+        console.warn('Create playlist request ignored - too frequent');
+        return;
+    }
+    
+    // Check if modal already exists
+    if (document.getElementById('playlistEditModal')) {
+        console.warn('Create playlist modal already open');
+        return;
+    }
+    
     const temp = { id: 'NEW', name: '', description: '', color: '#1db954', cover_url: null, is_public: false };
     import('./playlist.js').then(mod => {
         const originalSave = window.savePlaylistModal;
+        let isCreating = false; // Prevent double submission
+        
         window.savePlaylistModal = async function(_) {
+            // Prevent double submission
+            if (isCreating) {
+                console.warn('Playlist creation already in progress');
+                return;
+            }
+            
             const name = document.getElementById('plName')?.value.trim();
             const desc = document.getElementById('plDesc')?.value.trim();
             const color = document.getElementById('plColor')?.value;
             const isPublic = !!document.getElementById('plPublic')?.checked;
             const coverFile = document.getElementById('plCoverFile')?.files?.[0];
-            if (!name) return alert('Tên không được để trống');
+            const saveBtn = document.getElementById('plSaveBtn');
+
+            if (!name) {
+                alert('Tên không được để trống');
+                return;
+            }
+            
+            // Set creating flag and disable button
+            isCreating = true;
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Đang tạo...';
+            }
+            
             try {
                 const { data: { user } } = await supabase.auth.getUser();
                 const created = await mod.createPlaylist({ name, description: desc, color, is_public: isPublic, cover_url: null });
@@ -2150,6 +2296,12 @@ window.openCreatePlaylistModal = function() {
                 console.error('Lỗi tạo playlist:', err);
                 alert('Lỗi: ' + err.message);
             } finally {
+                // Reset state
+                isCreating = false;
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Tạo';
+                }
                 window.savePlaylistModal = originalSave;
             }
         };
@@ -2508,12 +2660,30 @@ window.togglePlaylistDropdown = async function(button, trackId) {
             console.log('Off-screen detected: Flipped to left align (left=' + leftPos + ')');
         }
 
+        // SMART POSITIONING: Check if dropdown would be cut off at bottom
+        const dropdownHeight = 300; // Estimated max height
+        const viewportBottom = window.innerHeight + window.scrollY;
+        const spaceBelow = viewportBottom - (rect.bottom + window.scrollY);
+        const spaceAbove = rect.top + window.scrollY;
+        
+        let topPos;
+        if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+            // Show above button if not enough space below but more space above
+            topPos = rect.top + window.scrollY - gap - dropdownHeight;
+            console.log('Dropdown positioned above button');
+        } else {
+            // Default: show below button
+            topPos = rect.bottom + window.scrollY + gap;
+        }
+        
         // SET STYLE EARLY
-        dropdown.style.top = `${rect.bottom + window.scrollY + gap}px`;
+        dropdown.style.top = `${topPos}px`;
         dropdown.style.left = `${leftPos}px`;
         dropdown.style.width = `${dropdownWidth}px`;
         dropdown.style.right = 'auto';
-        dropdown.style.height = 'auto';  // Reset height early
+        dropdown.style.height = 'auto';
+        dropdown.style.maxHeight = '300px';
+        dropdown.style.overflowY = 'auto';
 
         dropdown.classList.add('active');
         document.body.classList.add('dropdown-open');

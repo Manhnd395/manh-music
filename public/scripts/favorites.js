@@ -4,7 +4,11 @@
 // Use global supabase instead of import
 const getSupabase = () => window.supabase;
 
-// Check if a playlist is favorited by current user
+// Cache for favorites to avoid repeated API calls
+const favoritesCache = new Map();
+const cacheExpiry = 5 * 60 * 1000; // 5 minutes
+
+// Check if a playlist is favorited by current user with caching
 export async function isPlaylistFavorited(playlistId) {
     try {
         if (!window.supabase) {
@@ -15,19 +19,53 @@ export async function isPlaylistFavorited(playlistId) {
         const { data: { user } } = await window.supabase.auth.getUser();
         if (!user) return false;
 
-        const { data, error } = await window.supabase
-            .from('user_favorites')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('playlist_id', playlistId)
-            .single();
-
-        if (error && error.code !== 'PGRST116') {
-            console.error('Error checking favorite status:', error);
-            return false;
+        // Check cache first
+        const cacheKey = `${user.id}:${playlistId}`;
+        const cached = favoritesCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < cacheExpiry) {
+            return cached.value;
         }
 
-        return !!data;
+        // Use count instead of select to avoid 406 errors
+        const { count, error } = await window.supabase
+            .from('user_favorites')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('playlist_id', playlistId);
+
+        if (error) {
+            console.error('Error checking favorite status:', error);
+            // Try fallback with different approach
+            try {
+                const { data: fallbackData, error: fallbackError } = await window.supabase
+                    .from('user_favorites')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .eq('playlist_id', playlistId)
+                    .maybeSingle();
+                    
+                if (fallbackError) {
+                    console.error('Fallback favorite check failed:', fallbackError);
+                    return false;
+                }
+                
+                const result = !!fallbackData;
+                // Cache the result
+                favoritesCache.set(cacheKey, { value: result, timestamp: Date.now() });
+                return result;
+                
+            } catch (fallbackErr) {
+                console.error('Complete favorite check failure:', fallbackErr);
+                return false;
+            }
+        }
+
+        const result = (count || 0) > 0;
+        
+        // Cache the result
+        favoritesCache.set(cacheKey, { value: result, timestamp: Date.now() });
+        
+        return result;
     } catch (error) {
         console.error('Error in isPlaylistFavorited:', error);
         return false;
@@ -55,6 +93,10 @@ export async function addToFavorites(playlistId) {
             .single();
 
         if (error) throw error;
+        
+        // Invalidate cache
+        const cacheKey = `${user.id}:${playlistId}`;
+        favoritesCache.delete(cacheKey);
         
         console.log('Playlist added to favorites:', data);
         return data;
@@ -87,7 +129,11 @@ export async function removeFromFavorites(playlistId) {
 
         if (error) throw error;
         
-        console.log('Playlist removed from favorites');
+        // Invalidate cache
+        const cacheKey = `${user.id}:${playlistId}`;
+        favoritesCache.delete(cacheKey);
+        
+        console.log('Playlist removed from favorites:', playlistId);
         return true;
     } catch (error) {
         console.error('Error removing from favorites:', error);
