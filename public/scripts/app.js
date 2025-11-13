@@ -2963,7 +2963,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 console.error('getUser also failed:', error);
                 const basePath = import.meta.env.BASE_URL || '/manh-music/';
-                window.location.href(basePath + 'index.html');
+                window.location.href = basePath + 'index.html';
             }
         });
     }
@@ -3006,14 +3006,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (error) {
                     console.error('❌ Set session error:', error);
                     const basePath = import.meta.env.BASE_URL || '/manh-music/';
-                    window.location.href(basePath + 'index.html');
+                    window.location.href = basePath + 'index.html';
                     return;
                 }
 
                 if (!session?.user) {
                     console.warn('⚠️ setSession returned session without user');
                     const basePath = import.meta.env.BASE_URL || '/manh-music/';
-                    window.location.href(basePath + 'index.html');
+                    window.location.href = basePath + 'index.html';
                     return;
                 }
 
@@ -3027,7 +3027,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } catch (err) {
                 console.error('❌ OAuth processing error:', err);
                 const basePath = import.meta.env.BASE_URL || '/manh-music/';
-                window.location.href(basePath + 'index.html');
+                window.location.href = basePath + 'index.html';
                 return;
             }
         }
