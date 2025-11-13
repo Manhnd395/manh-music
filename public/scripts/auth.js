@@ -449,8 +449,8 @@ async function loginWithGoogle() {
     try {
         const basePath = getBasePath();
 
-        // Redirect về index của project path để Supabase xử lý code/token rồi mới điều hướng tiếp
-        const redirectUrl = `${window.location.origin}${basePath}`; // e.g., https://.../manh-music/
+        // Redirect to player.html with correct base path for OAuth callback
+        const redirectUrl = `${window.location.origin}${basePath}player.html`;
         console.log('Google OAuth redirectTo →', redirectUrl);
 
         const { data, error } = await supabase.auth.signInWithOAuth({

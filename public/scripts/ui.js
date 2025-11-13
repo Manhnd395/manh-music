@@ -507,19 +507,6 @@ async function fetchLyrics(track) {
     }
 }
 
-// Generate mock lyrics fallback
-function generateMockLyrics(title, artist) {
-    const lines = [
-        `[Verse 1]\nIn the rhythm of ${title}, we find our way,`,
-        `\n${artist}'s melody, lighting up the day.`,
-        `\n[Chorus]\nOh, ${title}, take me higher,`,
-        `With your sound, set my soul on fire.`,
-        `\n[Verse 2]\nWhispers of the night, in every note we hear,`,
-        `${title} forever, drawing us near.`
-    ];
-    return lines.join('\n') + `\n\n*(Mock lyrics - Use real API for full verses)*`;
-}
-
 async function getNextTrackPreview() {
     if (currentPlaylist.length === 0) return null;
     let nextIndex = (currentTrackIndex + 1) % currentPlaylist.length;
