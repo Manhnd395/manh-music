@@ -1109,7 +1109,7 @@ window.renderPublicPlaylists = async function(limit = 12) {
     try {
         const { data: playlists, error } = await supabase
             .from('playlists')
-            .select('id, name, color, cover_url, playlist_tracks(count), is_public')
+            .select('id, name, color, cover_url, user_id, is_public, playlist_tracks(count), users(username)')
             .eq('is_public', true)
             .order('created_at', { ascending: false })
             .limit(limit);
@@ -1121,6 +1121,10 @@ window.renderPublicPlaylists = async function(limit = 12) {
         }
         // Tái sử dụng renderer hiện có
         import('./playlist.js').then(mod => {
+            // Normalize owner username for renderer
+            playlists.forEach(p => {
+                p.owner_username = p.users?.username || p.username || null;
+            });
             mod.renderPlaylists(playlists, container);
         });
     } catch (e) {

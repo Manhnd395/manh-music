@@ -559,11 +559,13 @@ export function renderPlaylists(playlists, container) {
                 trackCount = playlist.playlist_tracks.count;
             }
 
+            const ownerLine = playlist.owner_username ? `<p class="playlist-owner" style="font-size:12px;color:#aaa;margin-top:4px;">by ${escapeHtml(playlist.owner_username)}</p>` : '';
             card.innerHTML = `
                 ${coverHtml}
                 <div class="playlist-info">
                     <h3>${escapeHtml(playlist.name)}</h3>
                     <p>${trackCount} bài hát</p>
+                    ${ownerLine}
                 </div>
             `;
 
