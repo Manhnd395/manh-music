@@ -516,13 +516,22 @@ async function fetchLyrics(track) {
 }
 
 async function getNextTrackPreview() {
-    if (!window.currentPlaylist || window.currentPlaylist.length === 0) return null;
+    if (!window.currentPlaylist || window.currentPlaylist.length === 0) {
+        return { title: 'Bài hát ngẫu nhiên', artist: 'Từ cơ sở dữ liệu' };
+    }
+    
     let nextIndex = (window.currentTrackIndex + 1) % window.currentPlaylist.length;
     if (window.isShuffling) {
         let shuffleIdx = window.shuffleOrder.indexOf(window.currentTrackIndex);
         shuffleIdx = (shuffleIdx + 1) % window.currentPlaylist.length;
         nextIndex = window.shuffleOrder[shuffleIdx];
     }
+    
+    // If we're at the end of playlist and not in repeat all mode
+    if (window.repeatMode !== 'all' && nextIndex === 0 && window.currentTrackIndex !== 0) {
+        return { title: 'Bài hát ngẫu nhiên', artist: 'Từ cơ sở dữ liệu' };
+    }
+    
     return window.currentPlaylist[nextIndex] || null;
 }
 

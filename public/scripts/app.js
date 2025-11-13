@@ -19,6 +19,10 @@ let isShuffling = false;
 let repeatMode = 'off'; 
 let shuffleOrder = []; 
 
+// Session tracking for played tracks
+let sessionPlayedTracks = new Set(); // Track IDs that have been played this session
+let allAvailableTracks = []; // Cache of all tracks from database for random selection
+
 let cachedPlaylists = null;
 let cachedHistoryTracks = null;
 let cachedRecommendedTracks = null;
@@ -627,6 +631,9 @@ window.playTrack = async function (track, playlist = currentPlaylist, index = -1
         // FIX: Thử load audio trước
         currentAudio.load();
         
+        // Mark this track as played in the current session
+        markTrackAsPlayed(track.id);
+        
         // Only auto-play if requested. Otherwise load and update UI without starting playback.
         if (autoplay) {
             // FIX: Đợi một chút rồi mới play
@@ -707,63 +714,50 @@ window.playNextTrack = async function () {
         return;
     }
 
-    // FIX: Nếu currentPlaylist empty, load recs random
-    if (currentPlaylist.length === 0) {
-        console.log('No current playlist - loading recommendations for random next');
-        const user = window.currentUser;
-    if (!user) return;
+    // Check if we have a valid playlist and not at the end
+    if (currentPlaylist.length > 0) {
+        let nextIndex;
+        if (isShuffling) {
+            let currentShuffleIndex = shuffleOrder.indexOf(currentTrackIndex);
+            currentShuffleIndex = (currentShuffleIndex + 1) % currentPlaylist.length;
+            nextIndex = shuffleOrder[currentShuffleIndex];
+        } else {
+            nextIndex = (currentTrackIndex + 1) % currentPlaylist.length;
+        }
 
-        if (!cachedRecommendedTracks || cachedRecommendedTracks.length === 0) {
-            try {
-                const { data: tracks, error } = await supabase
-                    .rpc('get_unique_recommendations', { limit_count: 20 });
-                if (error) throw error;
-                cachedRecommendedTracks = tracks || [];
-            } catch (error) {
-                console.error('Lỗi load recommendations for random:', error);
-                isPlaying = false;
+        // If we're not in repeat mode 'all' and reached the end, play random track
+        if (repeatMode !== 'all' && nextIndex === 0 && currentTrackIndex !== 0) {
+            console.log('Reached end of playlist - playing random track from database');
+            const randomTrack = await getRandomUnplayedTrack();
+            if (randomTrack) {
+                // Clear current playlist context to indicate single track mode
+                currentPlaylist = [];
+                currentTrackIndex = 0;
+                window.currentPlaylistSource = null;
+                window.appFunctions.playTrack(randomTrack);
                 return;
             }
         }
 
-        const recs = cachedRecommendedTracks;
-        if (recs.length === 0) {
-            console.log('No recommendations available - stopping playback');
+        // Continue with normal playlist progression
+        currentTrackIndex = nextIndex;
+        const track = currentPlaylist[nextIndex];
+        window.appFunctions.playTrack(track);
+    } else {
+        // No current playlist - play random track from database
+        console.log('No current playlist - playing random track from database');
+        const randomTrack = await getRandomUnplayedTrack();
+        if (randomTrack) {
+            currentPlaylist = [];
+            currentTrackIndex = 0;
+            window.currentPlaylistSource = null;
+            window.appFunctions.playTrack(randomTrack);
+        } else {
+            console.log('No tracks available - stopping playback');
             isPlaying = false;
             return;
         }
-
-        // FIX: Enable shuffle temporarily for true random nexts
-        if (!isShuffling) {
-            isShuffling = true;
-            generateShuffleOrder(); // Shuffle the order
-            console.log('Auto-enabled shuffle for recs fallback');
-        }
-
-        const randomIndex = Math.floor(Math.random() * recs.length);
-        currentPlaylist = recs;
-        currentTrackIndex = randomIndex;
-        const randomTrack = recs[randomIndex];
-        
-        console.log(`Auto-playing random recommendation: ${randomTrack.title} (shuffled mode)`);
-        window.appFunctions.playTrack(randomTrack);
-        return;
     }
-
-    let nextIndex;
-    if (isShuffling) {
-        let currentShuffleIndex = shuffleOrder.indexOf(currentTrackIndex);
-        currentShuffleIndex = (currentShuffleIndex + 1) % currentPlaylist.length;
-        nextIndex = shuffleOrder[currentShuffleIndex];
-    } else {
-        nextIndex = (currentTrackIndex + 1) % currentPlaylist.length;
-        // FIX: Reset shuffle if not shuffling
-        shuffleOrder = [];
-    }
-
-    currentTrackIndex = nextIndex;
-    const track = currentPlaylist[nextIndex];
-    window.appFunctions.playTrack(track);
     
     // FIX: Explicit icon update sau play (nếu onEnded không fire kịp)
     setTimeout(() => {
@@ -3084,9 +3078,66 @@ function navigateTo(target) {
     } 
 }
 
+// Function to fetch a random track from database, avoiding already played tracks
+async function getRandomUnplayedTrack() {
+    try {
+        const user = window.currentUser;
+        if (!user) return null;
+
+        // If we don't have cached tracks, fetch them
+        if (allAvailableTracks.length === 0) {
+            const { data: tracks, error } = await supabase
+                .from('tracks')
+                .select('id, title, artist, file_url, cover_url, user_id')
+                .limit(200); // Limit to avoid too much data
+            
+            if (error) {
+                console.error('Error fetching tracks for random selection:', error);
+                return null;
+            }
+            
+            allAvailableTracks = tracks || [];
+        }
+
+        // Filter out already played tracks
+        const unplayedTracks = allAvailableTracks.filter(track => !sessionPlayedTracks.has(track.id));
+        
+        // If all tracks have been played, reset the session (allow replaying)
+        if (unplayedTracks.length === 0) {
+            console.log('All available tracks played, resetting session...');
+            sessionPlayedTracks.clear();
+            if (allAvailableTracks.length > 0) {
+                const randomIndex = Math.floor(Math.random() * allAvailableTracks.length);
+                return allAvailableTracks[randomIndex];
+            }
+            return null;
+        }
+
+        // Return a random unplayed track
+        const randomIndex = Math.floor(Math.random() * unplayedTracks.length);
+        return unplayedTracks[randomIndex];
+        
+    } catch (error) {
+        console.error('Error in getRandomUnplayedTrack:', error);
+        return null;
+    }
+}
+
+// Function to mark a track as played in current session
+function markTrackAsPlayed(trackId) {
+    if (trackId) {
+        sessionPlayedTracks.add(trackId);
+        console.log(`Track ${trackId} marked as played. Total played: ${sessionPlayedTracks.size}`);
+    }
+}
+
 window.currentPlaylist = currentPlaylist;
 window.currentTrackIndex = currentTrackIndex;
 window.isShuffling = isShuffling;
 window.shuffleOrder = shuffleOrder;
 window.repeatMode = repeatMode;
 window.navigateTo = navigateTo;
+window.getRandomUnplayedTrack = getRandomUnplayedTrack;
+window.markTrackAsPlayed = markTrackAsPlayed;
+window.sessionPlayedTracks = sessionPlayedTracks;
+window.allAvailableTracks = allAvailableTracks;
