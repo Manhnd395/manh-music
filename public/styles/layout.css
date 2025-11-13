@@ -134,6 +134,12 @@ body {
     background: #121212;
 }
 
+/* When right sidebar is active, adjust main content width */
+.sidebar-right.active ~ .main-content,
+body.sidebar-right-active .main-content {
+    width: calc(100% - var(--sidebar-width, 200px) - 300px); /* Account for both sidebars */
+}
+
 .main-content > section {
     width: 100%;
 }
@@ -593,6 +599,8 @@ body.dropdown-open .playlist-option {
     padding: 20px;
     display: none;
     border-left: 1px solid #404040;
+    position: relative;
+    z-index: 999; /* Below header but above content */
 }
 
 .sidebar-right.active {

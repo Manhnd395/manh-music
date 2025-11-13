@@ -82,7 +82,7 @@ body.dark-theme {
   position: fixed;
   top: 0;
   right: 0;
-  width: calc(100% - 200px);  /* Trừ sidebar width */
+  width: calc(100% - var(--sidebar-width, 200px));  /* Account for left sidebar, right sidebar handled separately */
   height: 60px;
   background-color: var(--bg-main);
   display: flex;
@@ -90,6 +90,12 @@ body.dark-theme {
   justify-content: flex-end;
   padding: 0 20px;
   z-index: 1500; /* Higher than sidebar (1001) and player bar (1000) */
+}
+
+/* When right sidebar is active, adjust header width */
+.sidebar-right.active ~ .main-content .main-header,
+body:has(.sidebar-right.active) .main-header {
+  width: calc(100% - var(--sidebar-width, 200px) - 300px); /* Account for both sidebars */
 }
 
 .profile-wrapper {

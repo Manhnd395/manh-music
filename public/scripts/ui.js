@@ -136,8 +136,11 @@ window.updatePlayerBar = function(track) {
 
     if (track) {
         rightPanel.classList.add('active');
+        // Force trigger layout recalculation
+        document.body.classList.add('sidebar-right-active');
     } else {
         rightPanel.classList.remove('active');
+        document.body.classList.remove('sidebar-right-active');
     }
 
     if (!track) {
