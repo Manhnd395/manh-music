@@ -9,13 +9,18 @@ console.log('Script loaded at path:', window.location.pathname);
 let isLoggin = false;
 
 function getBasePath() {
-    const envBase = import.meta && import.meta.env && import.meta.env.BASE_URL;
-    if (envBase) {
+    // Priority 1: Vite injected BASE_URL (when built)
+    if (typeof import !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) {
+        const envBase = import.meta.env.BASE_URL;
         return envBase.endsWith('/') ? envBase : envBase + '/';
     }
+    
+    // Priority 2: GitHub Pages detection
     if (window.location.pathname.includes('/manh-music/') || window.location.hostname.endsWith('github.io')) {
         return '/manh-music/';
     }
+    
+    // Priority 3: Local development fallback
     return '/';
 }
 
@@ -443,11 +448,6 @@ async function loginWithEmail() {
     }
 }
 
-// Get correct base path for OAuth redirects
-function getBasePath() {
-    return (typeof import !== 'undefined' && import.meta.env && import.meta.env.BASE_URL)
-        ? import.meta.env.BASE_URL
-        : '/manh-music/';
 }
 
 async function loginWithGoogle() {
