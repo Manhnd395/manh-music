@@ -1,4 +1,9 @@
 <section id="home-section" class="main-section" style="display: block;">
+    <!-- Public playlists section at the top -->
+    <h2>Playlist công khai</h2>
+    <div id="publicPlaylistGrid" class="playlist-grid"></div>
+    <small style="color:#aaa; margin-bottom: 20px; display: block;">Các playlist do người dùng công khai</small>
+    
     <h2>Danh sách phát của tôi</h2>
     <button id="createPlaylistBtn" class="btn-primary" onclick="window.openCreatePlaylistModal()">
         + Tạo Danh Sách Phát Mới
@@ -33,20 +38,7 @@
     <div id="recommendList" class="track-list"></div>
 </section>
 
-<section id="public-playlists-section" class="main-section" style="display: block;">
-        <h2>Playlist công khai</h2>
-        <div id="publicPlaylistGrid" class="playlist-grid"></div>
-        <small style="color:#aaa">Các playlist do người dùng công khai</small>
-    
-        <script>
-            // Auto-load public playlists when section is shown via switchTab('public-playlists')
-            window.addEventListener('APP_READY', () => {
-                if (typeof window.renderPublicPlaylists === 'function') {
-                    window.renderPublicPlaylists(12);
-                }
-            });
-        </script>
-    </section>
+
 
 <section id="upload-section" class="main-section" style="display: none;">
     <h2>Tải nhạc lên</h2>

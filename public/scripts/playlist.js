@@ -201,7 +201,7 @@ window.openPlaylistEditModal = async function(playlistId) {
             <h2 class="pl-title">${creationMode ? 'Create playlist' : 'Edit details'}</h2>
             <div class="pl-grid">
                 <div class="pl-cover-wrapper" id="plCoverWrapper" aria-label="Ảnh bìa hiện tại (nhấn để chọn ảnh mới)">
-                    ${playlist.cover_url ? `<img id="plCoverPreview" src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" alt="Playlist cover" onerror="this.src='${defaultCover}'"/>` : `<div id="plCoverPreview" class="pl-cover-placeholder">No Image</div>`}
+                    ${playlist.cover_url ? `<img id="plCoverPreview" src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" alt="Playlist cover" onerror="this.src='${defaultCover}'"/>` : `<img id="plCoverPreview" src="${defaultCover}" alt="Default playlist cover" />`}
                     <input type="file" id="plCoverFile" accept="image/*" class="pl-file-hidden" aria-label="Chọn ảnh bìa" />
                 </div>
                 <form id="playlistEditForm" class="pl-form" novalidate>
@@ -228,7 +228,6 @@ window.openPlaylistEditModal = async function(playlistId) {
                             </label>
                         </div>
                     </div>
-                    <p class="pl-hint">Nhấn vào ảnh bìa để chọn ảnh mới. (Quyền sử dụng ảnh do bạn chịu trách nhiệm)</p>
                     <div class="pl-actions">
                         <button type="button" class="pl-btn pl-btn-secondary" id="plCancelBtn">Hủy</button>
                         <button type="submit" class="pl-btn pl-btn-primary" id="plSaveBtn">Lưu</button>
@@ -256,8 +255,6 @@ window.openPlaylistEditModal = async function(playlistId) {
     const descCounter = root.querySelector('#plDescCounter');
     nameInput.addEventListener('input', () => nameCounter.textContent = `${nameInput.value.length}/80`);
     descInput.addEventListener('input', () => descCounter.textContent = `${descInput.value.length}/300`);
-
-    // Không hỗ trợ chọn ảnh trong modal – giữ vùng ảnh bìa chỉ để hiển thị
 
     // Cover interactions
     const coverInput = root.querySelector('#plCoverFile');

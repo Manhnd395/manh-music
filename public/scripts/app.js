@@ -1109,7 +1109,7 @@ window.renderPublicPlaylists = async function(limit = 12) {
     try {
         const { data: playlists, error } = await supabase
             .from('playlists')
-            .select('id, name, color, cover_url, user_id, is_public, playlist_tracks(count), users(username)')
+            .select('id, name, color, cover_url, user_id, is_public, playlist_tracks(count), users!user_id(username)')
             .eq('is_public', true)
             .order('created_at', { ascending: false })
             .limit(limit);
@@ -1130,6 +1130,14 @@ window.renderPublicPlaylists = async function(limit = 12) {
     } catch (e) {
         console.error('Lỗi tải public playlists:', e);
         container.innerHTML = '<p class="error-message">Không tải được playlist công khai.</p>';
+        // Diagnostic hints for RLS
+        console.warn('[Public] Nếu không thấy playlist công khai, kiểm tra RLS policies bảng playlists & users.');
+        console.warn('Suggested policies:\n' +
+            "create policy 'playlists_public_anon' on public.playlists for select to anon using ( is_public );" + '\n' +
+            "create policy 'playlists_public_auth' on public.playlists for select to authenticated using ( is_public OR auth.uid() = user_id );" + '\n' +
+            "create policy 'users_public_owner' on public.users for select to anon using ( exists (select 1 from public.playlists p where p.user_id = users.id and p.is_public) );" + '\n' +
+            "create policy 'users_self_or_public' on public.users for select to authenticated using ( id = auth.uid() OR exists (select 1 from public.playlists p where p.user_id = users.id and p.is_public) );");
+        console.warn('Fallback: implement SECURITY DEFINER function get_public_playlists if RLS phức tạp.');
     }
 };
 
@@ -1204,7 +1212,14 @@ window.handleCreatePlaylistSubmit = handleCreatePlaylistSubmit;
 // Reuse edit modal UI for creating a new playlist
 window.openCreatePlaylistModal = function() {
     // Open modal with empty data and on save, call create instead of update
-    const temp = { id: 'NEW', name: '', description: '', color: '#1db954', cover_url: null, is_public: false };
+    const temp = { 
+        id: 'NEW', 
+        name: '', 
+        description: '', 
+        color: '#1db954', 
+        cover_url: 'https://lezswjtnlsmznkgrzgmu.supabase.co/storage/v1/object/public/cover/449bd474-7a51-4c22-b4a4-2ad8736d6fad/default-cover.webp', 
+        is_public: false 
+    };
     // Ensure playlist.js is loaded and use its renderer with slight override
     import('./playlist.js').then(mod => {
         // Monkey-patch save handler for this session
@@ -1220,8 +1235,18 @@ window.openCreatePlaylistModal = function() {
             let coverUrl = null;
             try {
                 const { data: { user } } = await supabase.auth.getUser();
+                // Sử dụng default cover nếu không có file upload
+                let initialCoverUrl = 'https://lezswjtnlsmznkgrzgmu.supabase.co/storage/v1/object/public/cover/449bd474-7a51-4c22-b4a4-2ad8736d6fad/default-cover.webp';
+                
                 // Tạo playlist trước để có id nếu cần upload cover
-                const created = await mod.createPlaylist({ name, description: desc, color, is_public: isPublic, cover_url: null });
+                const created = await mod.createPlaylist({ 
+                    name, 
+                    description: desc, 
+                    color, 
+                    is_public: isPublic, 
+                    cover_url: initialCoverUrl 
+                });
+                
                 if (coverFile) {
                     const uploadedUrl = await window.uploadPlaylistCover(user.id, created.id, coverFile);
                     if (uploadedUrl) {
@@ -2301,7 +2326,8 @@ window.loadHomePage = async function(skipFetch = false) {
         await Promise.all([
             window.appFunctions.loadUserPlaylists(),
             window.renderRecentHistory(),
-            window.renderRecommendations()
+            window.renderRecommendations(),
+            window.renderPublicPlaylists(12)  // Load public playlists
         ]);
         const dataTime = (performance.now() - dataStart).toFixed(0);
         console.log('All dynamic home data loaded in', dataTime, 'ms');
