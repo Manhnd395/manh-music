@@ -1,7 +1,8 @@
 // app.js
 import { supabase } from '../supabase/client.js';
 import { renderPlaylists, createPlaylist } from './playlist.js';
-import { renderPlaylistsWithFavorites } from './playlist-favorites.js';
+// Use global function instead of import for better compatibility
+// import { renderPlaylistsWithFavorites } from './playlist-favorites.js';
 
 console.log('App.js loaded');
 console.log('Supabase instance:', supabase ? 'Connected' : 'Not connected');
@@ -907,7 +908,21 @@ async function loadUserPlaylists(forceRefresh = false) {
         if (error) throw error;
 
         cachedPlaylists = playlists || [];
-        renderPlaylists(playlists, playlistGrid);
+        
+        // Use enhanced renderer if available, fallback to regular
+        if (window.renderPlaylistsWithFavorites) {
+            try {
+                await window.renderPlaylistsWithFavorites(playlists, playlistGrid, { 
+                    showFavoriteButtons: true, 
+                    showOwner: false 
+                });
+            } catch (e) {
+                console.warn('Error with enhanced renderer, falling back:', e);
+                renderPlaylists(playlists, playlistGrid);
+            }
+        } else {
+            renderPlaylists(playlists, playlistGrid);
+        }
         console.log('11. renderPlaylists DONE');
     } catch (error) {
         console.error('12. FINAL ERROR:', error);
@@ -1121,16 +1136,35 @@ window.renderPublicPlaylists = async function(limit = 12) {
             return;
         }
         // Tái sử dụng renderer hiện có
-        import('./playlist-favorites.js').then(async mod => {
-            // Normalize owner username for renderer
-            playlists.forEach(p => {
-                p.owner_username = p.users?.username || p.username || null;
+        if (window.renderPlaylistsWithFavorites) {
+            try {
+                // Normalize owner username for renderer
+                playlists.forEach(p => {
+                    p.owner_username = p.users?.username || p.username || null;
+                });
+                await window.renderPlaylistsWithFavorites(playlists, container, {
+                    showFavoriteButtons: true,
+                    showOwner: true
+                });
+            } catch (e) {
+                console.warn('Error with enhanced public playlists renderer:', e);
+                // Fallback to regular renderer
+                import('./playlist.js').then(mod => {
+                    playlists.forEach(p => {
+                        p.owner_username = p.users?.username || p.username || null;
+                    });
+                    mod.renderPlaylists(playlists, container);
+                });
+            }
+        } else {
+            // Fallback to regular renderer
+            import('./playlist.js').then(mod => {
+                playlists.forEach(p => {
+                    p.owner_username = p.users?.username || p.username || null;
+                });
+                mod.renderPlaylists(playlists, container);
             });
-            await mod.renderPlaylistsWithFavorites(playlists, container, {
-                showFavoriteButtons: true,
-                showOwner: true
-            });
-        });
+        }
     } catch (e) {
         console.error('Lỗi tải public playlists:', e);
         container.innerHTML = '<p class="error-message">Không tải được playlist công khai.</p>';

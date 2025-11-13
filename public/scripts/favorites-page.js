@@ -1,7 +1,18 @@
 // public/scripts/favorites-page.js
 // Favorites page functionality
 
-import { getUserFavorites, isPlaylistFavorited } from './favorites.js';
+// Use global functions instead of imports
+let getUserFavorites, isPlaylistFavorited;
+
+// Initialize when functions are available
+function initializeFavoritesFunctions() {
+    if (window.getUserFavorites && window.isPlaylistFavorited) {
+        getUserFavorites = window.getUserFavorites;
+        isPlaylistFavorited = window.isPlaylistFavorited;
+        return true;
+    }
+    return false;
+}
 
 // Load and display user's favorite playlists
 export async function loadFavoritesPage() {
@@ -10,6 +21,12 @@ export async function loadFavoritesPage() {
     
     if (!favoritesGrid) {
         console.warn('Favorites grid not found');
+        return;
+    }
+
+    // Wait for functions to be available
+    if (!initializeFavoritesFunctions()) {
+        setTimeout(loadFavoritesPage, 200);
         return;
     }
 

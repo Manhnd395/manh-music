@@ -1,15 +1,21 @@
 // public/scripts/favorites.js
 // Favorites functionality for playlists
 
-import { supabase } from './supabase/client.js';
+// Use global supabase instead of import
+const getSupabase = () => window.supabase;
 
 // Check if a playlist is favorited by current user
 export async function isPlaylistFavorited(playlistId) {
     try {
-        const { data: { user } } = await supabase.auth.getUser();
+        if (!window.supabase) {
+            console.warn('Supabase not available');
+            return false;
+        }
+        
+        const { data: { user } } = await window.supabase.auth.getUser();
         if (!user) return false;
 
-        const { data, error } = await supabase
+        const { data, error } = await window.supabase
             .from('user_favorites')
             .select('id')
             .eq('user_id', user.id)
@@ -31,6 +37,9 @@ export async function isPlaylistFavorited(playlistId) {
 // Add playlist to favorites
 export async function addToFavorites(playlistId) {
     try {
+        const supabase = getSupabase();
+        if (!supabase) throw new Error('Supabase not available');
+        
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
             throw new Error('User not authenticated');
@@ -62,6 +71,9 @@ export async function addToFavorites(playlistId) {
 // Remove playlist from favorites
 export async function removeFromFavorites(playlistId) {
     try {
+        const supabase = getSupabase();
+        if (!supabase) throw new Error('Supabase not available');
+        
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
             throw new Error('User not authenticated');
@@ -104,6 +116,9 @@ export async function togglePlaylistFavorite(playlistId) {
 // Get user's favorite playlists
 export async function getUserFavorites(limit = 20, offset = 0) {
     try {
+        const supabase = getSupabase();
+        if (!supabase) return [];
+        
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return [];
 
@@ -145,6 +160,9 @@ export async function getUserFavorites(limit = 20, offset = 0) {
 // Search playlists (both public and user's own)
 export async function searchPlaylists(query, filters = {}) {
     try {
+        const supabase = getSupabase();
+        if (!supabase) return [];
+        
         const { data: { user } } = await supabase.auth.getUser();
         
         let supabaseQuery = supabase

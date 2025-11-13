@@ -5,19 +5,29 @@
 function initializeFavoritesFeatures() {
     console.log('Initializing favorites features...');
     
-    // Initialize search functionality
-    if (window.initializeSearch) {
-        window.initializeSearch();
-    }
+    // Initialize search functionality with delay
+    setTimeout(() => {
+        if (window.initializeSearch) {
+            try {
+                window.initializeSearch();
+            } catch (error) {
+                console.warn('Error initializing search:', error);
+            }
+        }
+    }, 1000);
     
     // Update existing playlist cards with favorite buttons
-    if (window.updatePlaylistCardsWithFavorites) {
-        setTimeout(() => {
-            window.updatePlaylistCardsWithFavorites('.playlist-grid');
-        }, 1000);
-    }
+    setTimeout(() => {
+        if (window.updatePlaylistCardsWithFavorites) {
+            try {
+                window.updatePlaylistCardsWithFavorites('.playlist-grid');
+            } catch (error) {
+                console.warn('Error updating playlist cards:', error);
+            }
+        }
+    }, 2000);
     
-    console.log('Favorites features initialized');
+    console.log('Favorites features initialization started');
 }
 
 // Enhanced switchTab to load favorites page

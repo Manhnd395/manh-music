@@ -1,12 +1,29 @@
 // public/scripts/playlist-favorites.js
 // Add favorites functionality to existing playlist cards
 
-import { isPlaylistFavorited, togglePlaylistFavorite } from './favorites.js';
+// Use global functions instead of imports for better compatibility
+let isPlaylistFavorited, togglePlaylistFavorite;
+
+// Initialize when functions are available
+function initializeFavoritesFunctions() {
+    if (window.isPlaylistFavorited && window.togglePlaylistFavorite) {
+        isPlaylistFavorited = window.isPlaylistFavorited;
+        togglePlaylistFavorite = window.togglePlaylistFavorite;
+        return true;
+    }
+    return false;
+}
 
 // Enhanced renderPlaylists function with favorites support
 export async function renderPlaylistsWithFavorites(playlists, container, options = {}) {
     if (!playlists || playlists.length === 0) {
         container.innerHTML = '<p class="empty-message">Chưa có playlist nào.</p>';
+        return;
+    }
+
+    // Wait for functions to be available
+    if (!initializeFavoritesFunctions()) {
+        setTimeout(() => renderPlaylistsWithFavorites(playlists, container, options), 200);
         return;
     }
 

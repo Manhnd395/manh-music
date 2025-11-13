@@ -1,8 +1,18 @@
 // public/scripts/search-playlists.js
 // Playlist search functionality
 
-// Import required functions
-import { searchPlaylists, isPlaylistFavorited } from './favorites.js';
+// Import required functions - use relative import for better compatibility
+let searchPlaylists, isPlaylistFavorited;
+
+// Initialize imports when available
+function initializeImports() {
+    if (window.searchPlaylists && window.isPlaylistFavorited) {
+        searchPlaylists = window.searchPlaylists;
+        isPlaylistFavorited = window.isPlaylistFavorited;
+        return true;
+    }
+    return false;
+}
 
 // Search state
 let searchTimeout;
@@ -19,6 +29,13 @@ export function initializeSearch() {
 
     if (!searchInput) {
         console.warn('Search input not found, skipping search initialization');
+        return;
+    }
+
+    // Wait for dependencies to be available
+    if (!initializeImports()) {
+        console.log('Waiting for favorites functions to be available...');
+        setTimeout(initializeSearch, 500);
         return;
     }
 
@@ -86,6 +103,12 @@ function handleSearchInput(query) {
 // Perform the actual search
 async function performSearch(query, filter = 'all') {
     if (isSearching) return;
+    
+    // Wait for functions to be available
+    if (!initializeImports()) {
+        setTimeout(() => performSearch(query, filter), 100);
+        return;
+    }
     
     try {
         isSearching = true;
@@ -159,7 +182,14 @@ async function displaySearchResults(playlists, query) {
     try {
         const cardsHTML = await Promise.all(
             playlists.map(async (playlist) => {
-                const isFavorited = await isPlaylistFavorited(playlist.id);
+                let isFavorited = false;
+                if (isPlaylistFavorited) {
+                    try {
+                        isFavorited = await isPlaylistFavorited(playlist.id);
+                    } catch (e) {
+                        console.warn('Could not check favorite status:', e);
+                    }
+                }
                 return createPlaylistCardHTML(playlist, isFavorited);
             })
         );
