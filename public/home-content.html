@@ -1,4 +1,38 @@
 <section id="home-section" class="main-section" style="display: block;">
+    <!-- Search Section -->
+    <div class="search-container">
+        <h2>Tìm kiếm Playlist</h2>
+        <div class="search-box">
+            <input 
+                type="text" 
+                id="playlistSearchInput" 
+                placeholder="Tìm kiếm playlist theo tên, mô tả..." 
+                class="search-input"
+            />
+            <div class="search-filters">
+                <label class="filter-option">
+                    <input type="radio" name="searchFilter" value="all" checked>
+                    <span>Tất cả</span>
+                </label>
+                <label class="filter-option">
+                    <input type="radio" name="searchFilter" value="public">
+                    <span>Công khai</span>
+                </label>
+                <label class="filter-option">
+                    <input type="radio" name="searchFilter" value="mine">
+                    <span>Của tôi</span>
+                </label>
+            </div>
+        </div>
+        <div id="searchResults" class="search-results" style="display: none;">
+            <div class="search-results-header">
+                <span id="searchResultsCount">0 kết quả</span>
+                <button id="clearSearchBtn" class="clear-search-btn">×</button>
+            </div>
+            <div id="searchPlaylistGrid" class="playlist-grid"></div>
+        </div>
+    </div>
+
     <!-- Public playlists section at the top -->
     <h2>Playlist công khai</h2>
     <div id="publicPlaylistGrid" class="playlist-grid"></div>
@@ -36,6 +70,15 @@
 <section id="recommend-section" class="main-section" style="display: none;">
     <h2>Gợi ý cho bạn</h2>
     <div id="recommendList" class="track-list"></div>
+</section>
+
+<section id="favorites-section" class="main-section" style="display: none;">
+    <h2>Playlist yêu thích</h2>
+    <div id="favoritesGrid" class="playlist-grid"></div>
+    <div id="favoritesEmpty" class="empty-message" style="display: none;">
+        <p>Bạn chưa có playlist yêu thích nào.</p>
+        <p>Hãy thêm một vài playlist vào danh sách yêu thích!</p>
+    </div>
 </section>
 
 

@@ -1,6 +1,7 @@
 // app.js
 import { supabase } from '../supabase/client.js';
 import { renderPlaylists, createPlaylist } from './playlist.js';
+import { renderPlaylistsWithFavorites } from './playlist-favorites.js';
 
 console.log('App.js loaded');
 console.log('Supabase instance:', supabase ? 'Connected' : 'Not connected');
@@ -1120,12 +1121,15 @@ window.renderPublicPlaylists = async function(limit = 12) {
             return;
         }
         // Tái sử dụng renderer hiện có
-        import('./playlist.js').then(mod => {
+        import('./playlist-favorites.js').then(async mod => {
             // Normalize owner username for renderer
             playlists.forEach(p => {
                 p.owner_username = p.users?.username || p.username || null;
             });
-            mod.renderPlaylists(playlists, container);
+            await mod.renderPlaylistsWithFavorites(playlists, container, {
+                showFavoriteButtons: true,
+                showOwner: true
+            });
         });
     } catch (e) {
         console.error('Lỗi tải public playlists:', e);
@@ -2707,6 +2711,7 @@ window.switchTab = function(tabName, param = null) {
     else if (tabName === 'detail-playlist') targetId = 'playlistDetail';
     else if (tabName === 'search') targetId = 'search-section';
     else if (tabName === 'uploads') targetId = 'myUploadsSection';
+    else if (tabName === 'favorites') targetId = 'favorites-section';
 
     const target = document.getElementById(targetId);
     if (target) {
