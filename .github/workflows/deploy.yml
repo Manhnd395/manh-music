@@ -20,16 +20,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      # INJECT ENV TRỰC TIẾP VÀO index.html
+      # Inject env placeholders directly into HTML in public/
       - name: Inject Environment Variables
         run: |
           find public -name "*.html" -exec sed -i \
@@ -37,16 +28,14 @@ jobs:
             -e "s|__VITE_SUPABASE_ANON_KEY__|${{ secrets.VITE_SUPABASE_ANON_KEY }}|g" \
             -e "s|__VITE_GROQ_API_KEY__|${{ secrets.VITE_GROQ_API_KEY }}|g" {} \;
 
-      - name: Build
-        run: npm run build
-
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist'
+          # Deploy trực tiếp thư mục public thay vì dist
+          path: ./public
 
       - name: Deploy
         id: deployment
