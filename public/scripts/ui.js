@@ -219,7 +219,14 @@ window.sendAIQuery = async function(trackId, title, artist) {
     
     try {
         const apiKey = window.GROQ_API_KEY;
-        if (!apiKey || apiKey === 'your-groq-key-here' || apiKey === undefined) {
+        console.log('GROQ API Key status:', { 
+            exists: !!apiKey, 
+            length: apiKey?.length || 0, 
+            isPlaceholder: apiKey === '__VITE_GROQ_API_KEY__',
+            sample: apiKey?.substring(0, 10) + '...' 
+        });
+        
+        if (!apiKey || apiKey === 'your-groq-key-here' || apiKey === '__VITE_GROQ_API_KEY__' || apiKey === undefined) {
             throw new Error('GROQ_API_KEY chưa được cấu hình hoặc không hợp lệ');
         }
         

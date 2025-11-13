@@ -1,0 +1,115 @@
+/* Playlist Carousel Styles */
+.playlists-carousel-wrapper {
+    margin-bottom: 30px;
+}
+
+.carousel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.carousel-header h3 {
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.carousel-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.carousel-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--card-bg-darker);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+}
+
+.carousel-btn:hover:not(:disabled) {
+    background: var(--primary-color);
+    color: white;
+    transform: scale(1.1);
+}
+
+.carousel-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.playlists-carousel {
+    display: flex;
+    gap: 16px;
+    transition: transform 0.3s ease;
+    overflow: hidden;
+}
+
+/* Ensure playlist cards work well in carousel */
+.playlists-carousel .playlist-item {
+    flex-shrink: 0;
+    width: 200px;
+    position: relative;
+}
+
+.playlists-carousel .playlist-card {
+    width: 100%;
+    height: auto;
+}
+
+/* Responsive carousel */
+@media (max-width: 768px) {
+    .playlists-carousel .playlist-item {
+        width: 160px;
+    }
+    
+    .carousel-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+    
+    .carousel-header h3 {
+        font-size: 1.3rem;
+    }
+    
+    .carousel-controls {
+        align-self: flex-end;
+    }
+}
+
+@media (max-width: 480px) {
+    .playlists-carousel .playlist-item {
+        width: 140px;
+    }
+    
+    .carousel-header h3 {
+        font-size: 1.2rem;
+    }
+    
+    .carousel-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+    }
+}
+
+/* Hide scrollbars for smooth carousel */
+.playlists-carousel::-webkit-scrollbar {
+    display: none;
+}
+
+.playlists-carousel {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
