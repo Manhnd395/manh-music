@@ -60,27 +60,7 @@
         <div id="modalContentContainer"></div>
     </div>
 
-    <div id="createPlaylistModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('createPlaylistModal')"><i class="fa-solid fa-xmark"></i></span>
-            <h3>Tạo Danh Sách Phát Mới</h3>
-            <form id="createPlaylistForm"> 
-                <div class="form-group">
-                    <label for="playlistName">Tên Danh Sách Phát:</label>
-                    <input type="text" id="playlistName" name="playlistName" required maxlength="50">
-                </div>
-                <div class="form-group">
-                    <label for="playlistColor">Màu sắc (Hex):</label>
-                    <input type="color" id="playlistColor" name="playlistColor" value="#1DB954">
-                </div>
-                <div class="form-group">
-                    <label for="playlistCoverFile">Ảnh nền (tùy chọn):</label>
-                    <input type="file" id="playlistCoverFile" name="playlistCoverFile" accept="image/*">
-                </div>
-                <button type="submit" id="savePlaylistBtn" class="btn-primary">Tạo Playlist</button>
-            </form>
-        </div>
-    </div>
+    <!-- Legacy createPlaylistModal removed: creation now reuses overlay edit modal -->
 
     <footer id="playerBar" class="player-bar"></footer> 
 </body>

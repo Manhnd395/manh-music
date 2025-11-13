@@ -977,78 +977,77 @@ window.renderRecentHistory = async function() {
     }
 };
 
+// GLOBAL TOP TRACKS loader:
+// 1. Try fast path: select denormalized total_play column (if RLS permits).
+// 2. Fallback to SECURITY DEFINER RPC get_top_tracks_fast (new) or original get_top_tracks.
+// This ensures minimal overhead while retaining compatibility.
 window.loadTopTracks = async function(limit = 10) {
+    // Fast SELECT path first
     try {
-        // Ưu tiên dùng RPC nếu có (tổng lượt nghe toàn hệ thống, đã xử lý RLS qua SECURITY DEFINER)
-        try {
-            const { data: rpcData, error: rpcError } = await supabase
-                .rpc('get_top_tracks', { limit_count: limit });
-
-            if (!rpcError && Array.isArray(rpcData) && rpcData.length >= 0) {
-                return (rpcData || []).map(row => ({
-                    id: row.track_id || row.id,
-                    title: row.title,
-                    artist: row.artist,
-                    cover_url: row.cover_url,
-                    file_url: row.file_url,
-                    play_count: Number(row.total_play || row.play_count || 0)
-                }));
-            }
-        } catch (e) {
-            console.warn('RPC get_top_tracks unavailable, fallback to REST:', e?.message || e);
-        }
-
-        // Fallback A: Thử aggregate qua REST (có thể bị RLS hạn chế)
-        try {
-            const { data: aggData, error: aggError } = await supabase
-                .from('history')
-                .select(`
-                    track_id,
-                    total_play:play_count.sum(),
-                    tracks ( id, title, artist, cover_url, file_url )
-                `)
-                .order('total_play', { ascending: false })
-                .limit(limit);
-
-            if (!aggError && Array.isArray(aggData) && aggData.length) {
-                return aggData.map(row => ({
-                    ...row.tracks,
-                    play_count: Number(row.total_play || 0)
-                }));
-            }
-        } catch (e) {
-            console.warn('Aggregate select fallback failed:', e?.message || e);
-        }
-
-        // Fallback B: Top theo lịch sử của chính người dùng (nếu RLS không cho tổng)
-        const userId = window.currentUser?.id || null;
-        const { data: perUser, error: perUserErr } = await supabase
-            .from('history')
-            .select(`
-                track_id,
-                play_count,
-                tracks ( id, title, artist, cover_url, file_url )
-            `)
-            .eq('user_id', userId)
-            .order('play_count', { ascending: false })
+        const { data: fastData, error: fastErr } = await supabase
+            .from('tracks')
+            .select('id, title, artist, cover_url, file_url, total_play')
+            .order('total_play', { ascending: false })
             .limit(limit);
-
-        if (perUserErr) throw perUserErr;
-
-        // Loại trùng theo track_id
-        const distinct = [];
-        const seen = new Set();
-        for (const row of (perUser || [])) {
-            if (!seen.has(row.track_id)) {
-                seen.add(row.track_id);
-                distinct.push(row);
-            }
-            if (distinct.length >= limit) break;
+        if (!fastErr && Array.isArray(fastData)) {
+            console.log(`[TopTracks] Fast SELECT succeeded (${fastData.length}) using tracks.total_play`);
+            return fastData.map(r => ({
+                id: r.id,
+                title: r.title,
+                artist: r.artist,
+                cover_url: r.cover_url,
+                file_url: r.file_url,
+                play_count: Number(r.total_play || 0)
+            }));
+        } else {
+            console.warn('[TopTracks] Fast SELECT unavailable, falling back. Error:', fastErr?.message);
         }
+    } catch (selErr) {
+        console.warn('[TopTracks] Fast SELECT threw exception, fallback to RPC:', selErr?.message || selErr);
+    }
 
-        return distinct.map(r => ({ ...r.tracks, play_count: Number(r.play_count || 0) }));
-    } catch (error) {
-        console.error('Lỗi tải top tracks:', error);
+    // Fallback 1: new fast RPC using denormalized column
+    try {
+        const { data: rpcFast, error: rpcFastErr } = await supabase.rpc('get_top_tracks_fast', { limit_count: limit });
+        if (!rpcFastErr && Array.isArray(rpcFast)) {
+            console.log(`[TopTracks] RPC fast succeeded (${rpcFast.length})`);
+            return rpcFast.map(row => ({
+                id: row.track_id,
+                title: row.title,
+                artist: row.artist,
+                cover_url: row.cover_url,
+                file_url: row.file_url,
+                play_count: Number(row.total_play || 0)
+            }));
+        } else {
+            console.warn('[TopTracks] RPC fast unavailable, fallback to original. Error:', rpcFastErr?.message);
+        }
+    } catch (rpcFastEx) {
+        console.warn('[TopTracks] RPC fast exception, fallback to original:', rpcFastEx?.message || rpcFastEx);
+    }
+
+    // Fallback 2: original aggregate RPC
+    try {
+        const { data, error } = await supabase.rpc('get_top_tracks', { limit_count: limit });
+        if (error) {
+            console.error('[TopTracks] Original RPC error:', error);
+            return [];
+        }
+        if (!Array.isArray(data)) {
+            console.warn('[TopTracks] Original RPC returned non-array:', data);
+            return [];
+        }
+        console.log(`[TopTracks] Original RPC succeeded (${data.length})`);
+        return data.map(row => ({
+            id: row.track_id,
+            title: row.title,
+            artist: row.artist,
+            cover_url: row.cover_url,
+            file_url: row.file_url,
+            play_count: Number(row.total_play || 0)
+        }));
+    } catch (err) {
+        console.error('[TopTracks] All methods failed:', err);
         return [];
     }
 };
@@ -1069,14 +1068,25 @@ window.renderRecommendations = async function() {
         return;
     }
 
-    container.innerHTML = topTracks.map((t, i) => `
+    container.innerHTML = topTracks.map((t, i) => {
+        const safe = {
+            title: escapeHtml(t.title || 'Unknown Title'),
+            artist: escapeHtml(t.artist || 'Unknown Artist')
+        };
+        const plays = (t.play_count ?? 0);
+        const playsFmt = plays.toLocaleString();
+        return `
         <div class="track-item playable-track" onclick='event.stopPropagation(); window.playTrack(${JSON.stringify(t)}, [], -1)'>
             <div class="track-info">
                 <span class="track-index">${i + 1}</span>
                 <img src="${t.cover_url && t.cover_url.trim() ? t.cover_url : defaultCover}" class="track-cover" onerror="if(!this._tried){this._tried=true;this.src='${defaultCover}';}">
                 <div class="track-details">
-                    <div class="track-name">${escapeHtml(t.title)}</div>
-                    <div class="track-artist">${escapeHtml(t.artist)} · <span title="Tổng lượt nghe">${(t.play_count ?? 0).toLocaleString()} lượt nghe</span></div>
+                    <div class="track-name">${safe.title}</div>
+                    <div class="track-artist">${safe.artist} 
+                        <span class="play-badge" title="Tổng lượt nghe toàn hệ thống">
+                            <i class="fa fa-fire" style="color:#ff922b; margin-right:3px;"></i>${playsFmt}
+                        </span>
+                    </div>
                 </div>
             </div>
             <div class="track-actions">
@@ -1084,8 +1094,8 @@ window.renderRecommendations = async function() {
                     <i class="fas fa-plus"></i>
                 </button>
             </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 };
 
 // Hiển thị playlist công khai ở Home (nếu có cờ is_public)
@@ -2046,31 +2056,53 @@ async function loadHistoryTracks(forceRefresh = false) {
     }
 }
 
+// Override legacy creator to reuse overlay edit modal UI
 window.openCreatePlaylistModal = function() {
-    
-    console.log('--- Bắt đầu mở modal tạo playlist ---'); 
-    
-    const modal = document.getElementById('createPlaylistModal');
-    if (modal) {
-        modal.style.display = 'flex';
-        const form = document.getElementById('createPlaylistForm');
-        if (form) {
-            const handler = window.handleCreatePlaylistSubmit || handleCreatePlaylistSubmit;
-            
-            if(typeof handler !== 'function') {
-                 console.error('Lỗi: handleCreatePlaylistSubmit chưa được định nghĩa hoặc chưa được gắn vào window.');
-                 return;
+    console.log('Open Create Playlist (overlay)');
+    const temp = { id: 'NEW', name: '', description: '', color: '#1db954', cover_url: null, is_public: false };
+    import('./playlist.js').then(mod => {
+        const originalSave = window.savePlaylistModal;
+        window.savePlaylistModal = async function(_) {
+            const name = document.getElementById('plName')?.value.trim();
+            const desc = document.getElementById('plDesc')?.value.trim();
+            const color = document.getElementById('plColor')?.value;
+            const isPublic = !!document.getElementById('plPublic')?.checked;
+            const coverFile = document.getElementById('plCoverFile')?.files?.[0];
+            if (!name) return alert('Tên không được để trống');
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                const created = await mod.createPlaylist({ name, description: desc, color, is_public: isPublic, cover_url: null });
+                if (coverFile) {
+                    const uploadedUrl = await window.uploadPlaylistCover(user.id, created.id, coverFile);
+                    if (uploadedUrl) await supabase.from('playlists').update({ cover_url: uploadedUrl }).eq('id', created.id);
+                }
+                document.getElementById('playlistEditModal')?.remove();
+                await window.appFunctions.loadUserPlaylists(true);
+                alert('Đã tạo playlist');
+            } catch (err) {
+                console.error('Lỗi tạo playlist:', err);
+                alert('Lỗi: ' + err.message);
+            } finally {
+                window.savePlaylistModal = originalSave;
             }
+        };
 
-            form.removeEventListener('submit', handler); 
-            form.addEventListener('submit', handler); 
-            console.log('Form submit listener attached.');
-        } else {
-             console.error('Lỗi: Không tìm thấy form ID="createPlaylistForm".');
-        }
-    } else {
-        console.error('Lỗi: Không tìm thấy modal ID="createPlaylistModal".');
-    }
+        window.openPlaylistEditModal(temp.id);
+        const nameEl = document.getElementById('plName');
+        const descEl = document.getElementById('plDesc');
+        const colorEl = document.getElementById('plColor');
+        const publicEl = document.getElementById('plPublic');
+        if (nameEl) nameEl.value = '';
+        if (descEl) descEl.value = '';
+        if (colorEl) colorEl.value = '#1db954';
+        if (publicEl) publicEl.checked = false;
+        const nameCounter = document.getElementById('plNameCounter');
+        const descCounter = document.getElementById('plDescCounter');
+        if (nameCounter) nameCounter.textContent = '0/80';
+        if (descCounter) descCounter.textContent = '0/300';
+        const titleEl = document.querySelector('#playlistEditModal .pl-title');
+        if (titleEl) titleEl.textContent = 'Create playlist';
+    });
 };
 
 function renderTrackListItem(track) {

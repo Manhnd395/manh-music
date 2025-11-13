@@ -53,14 +53,21 @@ export async function loadHomeContent() {
     try {
         const container = document.getElementById('mainContentArea');
         const homeSection = document.getElementById('home-section');
+        const publicSection = document.getElementById('public-playlists-section');
         
         // Ẩn tất cả section, hiện home section
         document.querySelectorAll('.main-section').forEach(section => {
             section.style.display = 'none';
         });
         homeSection.style.display = 'block';
+        // Hiển thị luôn khu public playlists nếu tồn tại trên home
+        if (publicSection) publicSection.style.display = 'block';
         
         await window.appFunctions.loadUserPlaylists();
+        // Tải danh sách playlist công khai nếu có grid
+        if (typeof window.renderPublicPlaylists === 'function') {
+            try { await window.renderPublicPlaylists(12); } catch (e) { console.warn('renderPublicPlaylists fail:', e); }
+        }
         
         // Load lịch sử bài hát
         await loadRecentHistory(); // Hàm này đã thêm trong app.js
