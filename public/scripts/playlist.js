@@ -149,15 +149,26 @@ window.openPlaylistEditModal = async function(playlistId) {
         existing.querySelector('#plName')?.focus();
         return; // singleton
     }
-
-    const { data: playlist, error } = await supabase
-        .from('playlists')
-        .select('id, name, description, color, cover_url, is_public')
-        .eq('id', playlistId)
-        .single();
-    if (error || !playlist) {
-        alert('Không tải được playlist để chỉnh sửa');
-        return;
+    // Helper to validate UUID (avoid 400 when using temp id like 'NEW')
+    const isValidUUID = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+    let playlist;
+    let creationMode = false;
+    if (playlistId === 'NEW' || !isValidUUID(playlistId)) {
+        // Creation mode: no fetch, use defaults
+        creationMode = true;
+        playlist = { id: 'NEW', name: '', description: '', color: '#1db954', cover_url: null, is_public: false };
+        console.log('[Playlist Modal] Creation mode initiated, skipping fetch.');
+    } else {
+        const { data: fetched, error } = await supabase
+            .from('playlists')
+            .select('id, name, description, color, cover_url, is_public')
+            .eq('id', playlistId)
+            .single();
+        if (error || !fetched) {
+            alert('Không tải được playlist để chỉnh sửa');
+            return;
+        }
+        playlist = fetched;
     }
     window.currentEditingPlaylist = playlist;
 
@@ -187,7 +198,7 @@ window.openPlaylistEditModal = async function(playlistId) {
         <div class="pl-backdrop" tabindex="-1" aria-hidden="true"></div>
         <div class="pl-modal" role="dialog" aria-modal="true" aria-label="Chỉnh sửa playlist">
             <button class="pl-close" aria-label="Đóng">✕</button>
-            <h2 class="pl-title">Edit details</h2>
+            <h2 class="pl-title">${creationMode ? 'Create playlist' : 'Edit details'}</h2>
             <div class="pl-grid">
                 <div class="pl-cover-wrapper" id="plCoverWrapper" aria-label="Ảnh bìa hiện tại (nhấn để chọn ảnh mới)">
                     ${playlist.cover_url ? `<img id="plCoverPreview" src="${getPublicPlaylistCoverUrl(playlist.cover_url)}" alt="Playlist cover" onerror="this.src='${defaultCover}'"/>` : `<div id="plCoverPreview" class="pl-cover-placeholder">No Image</div>`}
@@ -281,6 +292,7 @@ window.openPlaylistEditModal = async function(playlistId) {
     // Submit
     root.querySelector('#playlistEditForm').addEventListener('submit', (e) => {
         e.preventDefault();
+        // In creation mode the patched savePlaylistModal (from openCreatePlaylistModal) ignores the id param.
         window.savePlaylistModal(playlist.id);
     });
 };
