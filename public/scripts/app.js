@@ -909,88 +909,19 @@ async function loadUserPlaylists(forceRefresh = false) {
 
         cachedPlaylists = playlists || [];
         
-        // Convert to horizontal carousel for my playlists
-        if (playlists && playlists.length > 0) {
-            // Create carousel structure
-            playlistGrid.innerHTML = `
-                <div class="playlists-carousel-wrapper">
-                    <div class="carousel-header">
-                        <h3>Playlist của tôi</h3>
-                        <div class="carousel-controls">
-                            <button class="carousel-btn prev" id="myPlaylistsPrev">
-                                <i class="fas fa-chevron-left"></i>
-                            </button>
-                            <button class="carousel-btn next" id="myPlaylistsNext">
-                                <i class="fas fa-chevron-right"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="playlists-carousel" id="myPlaylistsCarousel">
-                        <!-- Playlists will be rendered here -->
-                    </div>
-                </div>
-            `;
-            
-            const carouselContainer = document.getElementById('myPlaylistsCarousel');
-            const prevBtn = document.getElementById('myPlaylistsPrev');
-            const nextBtn = document.getElementById('myPlaylistsNext');
-            
-            // Use enhanced renderer if available, fallback to regular
-            if (window.renderPlaylistsWithFavorites) {
-                try {
-                    await window.renderPlaylistsWithFavorites(playlists, carouselContainer, { 
-                        showFavoriteButtons: true, 
-                        showOwner: false,
-                        isCarousel: true
-                    });
-                } catch (e) {
-                    console.warn('Error with enhanced renderer, falling back:', e);
-                    renderPlaylists(playlists, carouselContainer);
-                }
-            } else {
-                renderPlaylists(playlists, carouselContainer);
+        // Use enhanced renderer if available, fallback to regular
+        if (window.renderPlaylistsWithFavorites) {
+            try {
+                await window.renderPlaylistsWithFavorites(playlists, playlistGrid, { 
+                    showFavoriteButtons: true, 
+                    showOwner: false 
+                });
+            } catch (e) {
+                console.warn('Error with enhanced renderer, falling back:', e);
+                renderPlaylists(playlists, playlistGrid);
             }
-            
-            // Setup carousel controls for my playlists
-            let currentIndex = 0;
-            const itemWidth = 200; // Playlist card width
-            const itemGap = 16; // Gap between items
-            const itemFullWidth = itemWidth + itemGap;
-            const maxVisible = Math.min(5, playlists.length); // Max 5 visible at once
-            
-            const updateCarousel = () => {
-                const translateX = -currentIndex * itemFullWidth;
-                carouselContainer.style.transform = `translateX(${translateX}px)`;
-                
-                // Update button states
-                prevBtn.disabled = currentIndex <= 0;
-                nextBtn.disabled = currentIndex >= playlists.length - maxVisible;
-                
-                // Hide controls if all playlists fit in view
-                if (playlists.length <= maxVisible) {
-                    prevBtn.style.display = 'none';
-                    nextBtn.style.display = 'none';
-                }
-            };
-            
-            prevBtn.onclick = () => {
-                if (currentIndex > 0) {
-                    currentIndex--;
-                    updateCarousel();
-                }
-            };
-            
-            nextBtn.onclick = () => {
-                if (currentIndex < playlists.length - maxVisible) {
-                    currentIndex++;
-                    updateCarousel();
-                }
-            };
-            
-            // Initial update
-            updateCarousel();
         } else {
-            playlistGrid.innerHTML = '<p class="empty-message">Chưa có playlist nào. Hãy tạo playlist đầu tiên!</p>';
+            renderPlaylists(playlists, playlistGrid);
         }
         console.log('11. renderPlaylists DONE');
     } catch (error) {
@@ -1202,121 +1133,68 @@ window.renderRecommendations = async function() {
     fixDropdownContainers(); // Fix missing containers
 };
 
-// Hiển thị playlist công khai ở Home với horizontal carousel (limit 5 mới nhất)
-window.renderPublicPlaylists = async function() {
+// Hiển thị playlist công khai ở Home (giới hạn 5 playlist mới nhất)
+window.renderPublicPlaylists = async function(limit = 5) {
     const container = document.getElementById('publicPlaylistGrid');
     if (!container) {
         console.warn('[Public] Grid container #publicPlaylistGrid not found. Skip render.');
-        return { playlists: [], hasMore: false };
+        return;
     }
-    
     container.innerHTML = '<p>Đang tải playlist công khai...</p>';
-    
     try {
-        // Query only 5 latest public playlists
         const { data: playlists, error } = await supabase
             .from('playlists')
             .select('id, name, color, cover_url, user_id, is_public, playlist_tracks(count), users!user_id(username)')
             .eq('is_public', true)
             .order('created_at', { ascending: false })
-            .limit(5);
-            
+            .limit(limit);
         if (error) throw error;
-        
-        console.log(`[Public] Loaded ${playlists?.length || 0} public playlists for carousel`);
-        
+        console.log(`[Public] Loaded public playlists: ${playlists ? playlists.length : 0}`);
         if (!playlists || playlists.length === 0) {
             container.innerHTML = '<p class="empty-message">Chưa có playlist công khai.</p>';
-            return { playlists: [], hasMore: false };
+            return;
         }
-        
-        // Create horizontal carousel
-        container.innerHTML = `
-            <div class="playlists-carousel-wrapper">
-                <div class="carousel-header">
-                    <h3>Playlist công khai mới nhất</h3>
-                    <div class="carousel-controls">
-                        <button class="carousel-btn prev" id="publicPrev">
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
-                        <button class="carousel-btn next" id="publicNext">
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="playlists-carousel" id="publicCarousel">
-                    <!-- Playlists will be rendered here -->
-                </div>
-            </div>
-        `;
-        
-        const carouselContainer = container.querySelector('#publicCarousel');
-        const prevBtn = container.querySelector('#publicPrev');
-        const nextBtn = container.querySelector('#publicNext');
-        
-        // Normalize owner username for renderer
-        playlists.forEach(p => {
-            p.owner_username = p.users?.username || p.username || null;
-        });
-        
-        // Render playlists in carousel
+        // Tái sử dụng renderer hiện có
         if (window.renderPlaylistsWithFavorites) {
             try {
-                await window.renderPlaylistsWithFavorites(playlists, carouselContainer, {
+                // Normalize owner username for renderer
+                playlists.forEach(p => {
+                    p.owner_username = p.users?.username || p.username || null;
+                });
+                await window.renderPlaylistsWithFavorites(playlists, container, {
                     showFavoriteButtons: true,
-                    showOwner: true,
-                    isCarousel: true
+                    showOwner: true
                 });
             } catch (e) {
                 console.warn('Error with enhanced public playlists renderer:', e);
                 // Fallback to regular renderer
-                const mod = await import('./playlist.js');
-                mod.renderPlaylists(playlists, carouselContainer);
+                import('./playlist.js').then(mod => {
+                    playlists.forEach(p => {
+                        p.owner_username = p.users?.username || p.username || null;
+                    });
+                    mod.renderPlaylists(playlists, container);
+                });
             }
         } else {
             // Fallback to regular renderer
-            const mod = await import('./playlist.js');
-            mod.renderPlaylists(playlists, carouselContainer);
+            import('./playlist.js').then(mod => {
+                playlists.forEach(p => {
+                    p.owner_username = p.users?.username || p.username || null;
+                });
+                mod.renderPlaylists(playlists, container);
+            });
         }
-        
-        // Setup carousel controls
-        let currentIndex = 0;
-        const itemWidth = 200; // Playlist card width
-        const itemGap = 16; // Gap between items
-        const itemFullWidth = itemWidth + itemGap;
-        
-        const updateCarousel = () => {
-            const translateX = -currentIndex * itemFullWidth;
-            carouselContainer.style.transform = `translateX(${translateX}px)`;
-            
-            // Update button states
-            prevBtn.disabled = currentIndex <= 0;
-            nextBtn.disabled = currentIndex >= playlists.length - 3; // Show 3 items at once
-        };
-        
-        prevBtn.onclick = () => {
-            if (currentIndex > 0) {
-                currentIndex--;
-                updateCarousel();
-            }
-        };
-        
-        nextBtn.onclick = () => {
-            if (currentIndex < playlists.length - 3) {
-                currentIndex++;
-                updateCarousel();
-            }
-        };
-        
-        // Initial update
-        updateCarousel();
-        
-        return { playlists, hasMore: false };
-        
     } catch (e) {
         console.error('Lỗi tải public playlists:', e);
         container.innerHTML = '<p class="error-message">Không tải được playlist công khai.</p>';
-        return { playlists: [], hasMore: false };
+        // Diagnostic hints for RLS
+        console.warn('[Public] Nếu không thấy playlist công khai, kiểm tra RLS policies bảng playlists & users.');
+        console.warn('Suggested policies:\n' +
+            "create policy 'playlists_public_anon' on public.playlists for select to anon using ( is_public );" + '\n' +
+            "create policy 'playlists_public_auth' on public.playlists for select to authenticated using ( is_public OR auth.uid() = user_id );" + '\n' +
+            "create policy 'users_public_owner' on public.users for select to anon using ( exists (select 1 from public.playlists p where p.user_id = users.id and p.is_public) );" + '\n' +
+            "create policy 'users_self_or_public' on public.users for select to authenticated using ( id = auth.uid() OR exists (select 1 from public.playlists p where p.user_id = users.id and p.is_public) );");
+        console.warn('Fallback: implement SECURITY DEFINER function get_public_playlists if RLS phức tạp.');
     }
 };
 
