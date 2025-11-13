@@ -448,8 +448,6 @@ async function loginWithEmail() {
     }
 }
 
-}
-
 async function loginWithGoogle() {
     console.log('Login with Google called');
     

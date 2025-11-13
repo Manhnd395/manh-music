@@ -19,17 +19,22 @@ window.uiHelpers = {
     }
 };
 
-window.getAssetUrl = function(relativePath) {
+window.buildUrl = function(relativePath) {
     const getBaseUrl = () => {
         const script = document.querySelector('script[src*="ui.js"]');
         if (script) {
             const scriptSrc = script.src;
-            return scriptSrc.substring(0, scriptSrc.lastIndexOf('/scripts/'));
+            const baseWithOrigin = scriptSrc.substring(0, scriptSrc.lastIndexOf('/scripts/'));
+            // If script src already has origin, extract just the path
+            if (baseWithOrigin.includes('://')) {
+                return baseWithOrigin.replace(window.location.origin, '');
+            }
+            return baseWithOrigin;
         }
         return window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
     };
     const base = getBaseUrl();
-    return `${window.location.origin}${base}/${relativePath.replace(/^\/+/, '')}`;  
+    return `${window.location.origin}${base}/${relativePath.replace(/^\/+/, '')}`;
 };
 
 window.loadComponent = async function(relativePath, targetId) {
@@ -43,7 +48,12 @@ window.loadComponent = async function(relativePath, targetId) {
         const script = document.querySelector('script[src*="ui.js"]');
         if (script) {
             const scriptSrc = script.src;
-            return scriptSrc.substring(0, scriptSrc.lastIndexOf('/scripts/'));
+            const baseWithOrigin = scriptSrc.substring(0, scriptSrc.lastIndexOf('/scripts/'));
+            // If script src already has origin, extract just the path
+            if (baseWithOrigin.includes('://')) {
+                return baseWithOrigin.replace(window.location.origin, '');
+            }
+            return baseWithOrigin;
         }
         return window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
     };
