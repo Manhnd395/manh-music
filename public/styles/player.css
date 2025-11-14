@@ -86,8 +86,9 @@
 
 /* When right sidebar is active, adjust header width */
 .sidebar-right.active ~ .main-content .main-header,
-body:has(.sidebar-right.active) .main-header {
+body.sidebar-right-active .main-header {
     width: calc(100% - var(--sidebar-width, 200px) - 300px); /* Account for both sidebars */
+    right: 300px; /* Offset by sidebar-right width */
 }
 
 .profile-wrapper {
